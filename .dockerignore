@@ -1,0 +1,16 @@
+.git
+.env
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db
+.ipynb_checkpoints
+data/duckdb/*
+logs/*
+models/checkpoints/*
+node_modules
+.vscode
+.agent
+brain

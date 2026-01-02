@@ -1,0 +1,369 @@
+"""
+ML Signal Generator - Ensemble of Technical and ML-based signals.
+
+Combines multiple signal sources to generate high-confidence trading signals.
+"""
+import numpy as np
+import pandas as pd
+from typing import Dict, Optional, Tuple, List
+from dataclasses import dataclass
+from loguru import logger
+from pathlib import Path
+import pickle
+
+
+@dataclass  
+class MLSignal:
+    """Container for ML-generated signal."""
+    action: str  # BUY, SELL, HOLD
+    confidence: float
+    technical_score: float
+    ml_score: float
+    volume_score: float
+    reasons: List[str]
+    
+    @property
+    def is_actionable(self) -> bool:
+        """Check if signal is strong enough to act on."""
+        return self.action != "HOLD" and self.confidence >= 0.55
+
+
+class SignalGenerator:
+    """
+    Ensemble signal generator combining:
+    - Technical indicator analysis (40%)
+    - ML model predictions (40%)
+    - Volume/Momentum confirmation (20%)
+    """
+    
+    WEIGHTS = {
+        'technical': 0.40,
+        'ml': 0.40,
+        'volume_momentum': 0.20,
+    }
+    
+    # Thresholds
+    MIN_CONFIDENCE = 0.55
+    STRONG_SIGNAL_THRESHOLD = 0.70
+    
+    def __init__(self, model_path: Optional[str] = None):
+        """
+        Initialize signal generator.
+        
+        Args:
+            model_path: Path to trained XGBoost model (optional)
+        """
+        self.model = None
+        self.model_loaded = False
+        
+        if model_path and Path(model_path).exists():
+            try:
+                with open(model_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                self.model_loaded = True
+                logger.info(f"Loaded ML model from {model_path}")
+            except Exception as e:
+                logger.warning(f"Could not load ML model: {e}")
+    
+    def generate(self, df: pd.DataFrame, symbol: str = "") -> MLSignal:
+        """
+        Generate trading signal from OHLCV data with indicators.
+        
+        Args:
+            df: DataFrame with OHLCV and technical indicators
+            symbol: Symbol being analyzed (for logging)
+            
+        Returns:
+            MLSignal with action and confidence
+        """
+        if df.empty or len(df) < 20:
+            return MLSignal(
+                action="HOLD",
+                confidence=0,
+                technical_score=0,
+                ml_score=0,
+                volume_score=0,
+                reasons=["Insufficient data"]
+            )
+        
+        reasons = []
+        
+        # === 1. Technical Analysis Score ===
+        tech_score, tech_reasons = self._calculate_technical_score(df)
+        reasons.extend(tech_reasons)
+        
+        # === 2. ML Model Score ===
+        ml_score, ml_reason = self._calculate_ml_score(df)
+        if ml_reason:
+            reasons.append(ml_reason)
+        
+        # === 3. Volume/Momentum Score ===
+        vol_score, vol_reason = self._calculate_volume_momentum_score(df)
+        if vol_reason:
+            reasons.append(vol_reason)
+        
+        # === Calculate Weighted Ensemble Score ===
+        total_score = (
+            tech_score * self.WEIGHTS['technical'] +
+            ml_score * self.WEIGHTS['ml'] +
+            vol_score * self.WEIGHTS['volume_momentum']
+        )
+        
+        # Normalize to [-1, 1]
+        normalized_score = np.clip(total_score, -1, 1)
+        
+        # Determine action and confidence
+        confidence = abs(normalized_score)
+        
+        if normalized_score >= 0.35 and confidence >= self.MIN_CONFIDENCE:
+            action = "BUY"
+        elif normalized_score <= -0.35 and confidence >= self.MIN_CONFIDENCE:
+            action = "SELL"
+        else:
+            action = "HOLD"
+        
+        signal = MLSignal(
+            action=action,
+            confidence=confidence,
+            technical_score=tech_score,
+            ml_score=ml_score,
+            volume_score=vol_score,
+            reasons=reasons[:5]  # Limit to top 5 reasons
+        )
+        
+        if signal.is_actionable:
+            logger.info(
+                f"[{symbol}] Signal: {action} (conf: {confidence:.2f}) | "
+                f"Tech: {tech_score:.2f}, ML: {ml_score:.2f}, Vol: {vol_score:.2f}"
+            )
+        
+        return signal
+    
+    def _calculate_technical_score(self, df: pd.DataFrame) -> Tuple[float, List[str]]:
+        """Calculate score from technical indicators."""
+        latest = df.iloc[-1]
+        prev = df.iloc[-2] if len(df) > 1 else latest
+        
+        score = 0
+        reasons = []
+        
+        # --- RSI Analysis ---
+        rsi = latest.get('RSI_14', 50)
+        if not pd.isna(rsi):
+            if rsi <= 25:
+                score += 0.8
+                reasons.append(f"RSI deeply oversold ({rsi:.0f})")
+            elif rsi <= 35:
+                score += 0.4
+                reasons.append(f"RSI oversold ({rsi:.0f})")
+            elif rsi >= 75:
+                score -= 0.8
+                reasons.append(f"RSI deeply overbought ({rsi:.0f})")
+            elif rsi >= 65:
+                score -= 0.4
+                reasons.append(f"RSI overbought ({rsi:.0f})")
+        
+        # --- MACD Analysis ---
+        macd_hist = latest.get('MACDh_12_26_9', 0)
+        prev_macd_hist = prev.get('MACDh_12_26_9', 0)
+        
+        if not pd.isna(macd_hist) and not pd.isna(prev_macd_hist):
+            # Bullish crossover
+            if prev_macd_hist < 0 and macd_hist > 0:
+                score += 0.7
+                reasons.append("MACD bullish crossover")
+            # Bearish crossover
+            elif prev_macd_hist > 0 and macd_hist < 0:
+                score -= 0.7
+                reasons.append("MACD bearish crossover")
+            # Growing bullish momentum
+            elif macd_hist > 0 and macd_hist > prev_macd_hist:
+                score += 0.3
+            # Growing bearish momentum
+            elif macd_hist < 0 and macd_hist < prev_macd_hist:
+                score -= 0.3
+        
+        # --- Bollinger Bands ---
+        close = latest.get('close', 0)
+        bb_lower = latest.get('BBL_20_2.0', 0)
+        bb_upper = latest.get('BBU_20_2.0', 0)
+        
+        if bb_lower > 0 and bb_upper > bb_lower:
+            bb_position = (close - bb_lower) / (bb_upper - bb_lower)
+            
+            if bb_position <= 0.05:
+                score += 0.6
+                reasons.append("Price at lower BB (bounce potential)")
+            elif bb_position <= 0.2:
+                score += 0.3
+            elif bb_position >= 0.95:
+                score -= 0.6
+                reasons.append("Price at upper BB (reversal risk)")
+            elif bb_position >= 0.8:
+                score -= 0.3
+        
+        # --- Trend Analysis (SMAs) ---
+        sma20 = latest.get('SMA_20', 0)
+        sma50 = latest.get('SMA_50', 0)
+        
+        if sma20 > 0 and sma50 > 0:
+            if close > sma20 > sma50:
+                score += 0.4
+                reasons.append("Bullish trend (price > SMA20 > SMA50)")
+            elif close < sma20 < sma50:
+                score -= 0.4
+                reasons.append("Bearish trend (price < SMA20 < SMA50)")
+        
+        # --- Stochastic ---
+        stoch_k = latest.get('STOCHk_14_3_3', 50)
+        stoch_d = latest.get('STOCHd_14_3_3', 50)
+        
+        if not pd.isna(stoch_k):
+            if stoch_k <= 20:
+                score += 0.3
+            elif stoch_k >= 80:
+                score -= 0.3
+        
+        # Normalize score to [-1, 1]
+        return np.clip(score / 2.5, -1, 1), reasons
+    
+    def _calculate_ml_score(self, df: pd.DataFrame) -> Tuple[float, str]:
+        """Calculate score from ML model prediction."""
+        if not self.model_loaded or self.model is None:
+            # Fallback: use simplified heuristic when no model
+            return self._heuristic_ml_score(df)
+        
+        try:
+            # Prepare features for model
+            features = self._prepare_features(df)
+            
+            # Get prediction probabilities
+            proba = self.model.predict_proba(features.reshape(1, -1))[0]
+            
+            # Classes: 0=HOLD, 1=BUY, 2=SELL
+            buy_prob = proba[1] if len(proba) > 1 else 0.33
+            sell_prob = proba[2] if len(proba) > 2 else 0.33
+            
+            score = buy_prob - sell_prob  # Range: [-1, 1]
+            
+            reason = ""
+            if abs(score) >= 0.3:
+                direction = "bullish" if score > 0 else "bearish"
+                reason = f"ML model {direction} signal ({abs(score):.0%})"
+            
+            return score, reason
+            
+        except Exception as e:
+            logger.warning(f"ML prediction failed: {e}")
+            return self._heuristic_ml_score(df)
+    
+    def _heuristic_ml_score(self, df: pd.DataFrame) -> Tuple[float, str]:
+        """
+        Heuristic ML-like score based on pattern recognition.
+        Used as fallback when ML model is not available.
+        """
+        if len(df) < 10:
+            return 0, ""
+        
+        # Calculate recent returns
+        returns = df['close'].pct_change().tail(10)
+        
+        # Check for trend
+        avg_return = returns.mean()
+        return_std = returns.std()
+        
+        # Trend following with mean reversion at extremes
+        if avg_return > 0.005:  # Strong up trend
+            score = 0.5
+            reason = "Bullish momentum pattern"
+        elif avg_return < -0.005:  # Strong down trend
+            score = -0.5
+            reason = "Bearish momentum pattern"
+        elif avg_return < -0.002 and return_std < 0.01:
+            # Oversold with low volatility - potential bounce
+            score = 0.3
+            reason = "Potential reversal pattern"
+        elif avg_return > 0.002 and return_std < 0.01:
+            # Overbought with low volatility - potential drop
+            score = -0.3
+            reason = "Potential reversal pattern"
+        else:
+            score = 0
+            reason = ""
+        
+        return score, reason
+    
+    def _calculate_volume_momentum_score(self, df: pd.DataFrame) -> Tuple[float, str]:
+        """Calculate score from volume and momentum."""
+        if len(df) < 20:
+            return 0, ""
+        
+        score = 0
+        reason = ""
+        
+        latest = df.iloc[-1]
+        
+        # --- Volume Analysis ---
+        if 'volume' in df.columns:
+            avg_vol = df['volume'].tail(20).mean()
+            latest_vol = latest['volume']
+            
+            if avg_vol > 0:
+                vol_ratio = latest_vol / avg_vol
+                
+                if vol_ratio >= 2.0:
+                    score += 0.4
+                    reason = f"High volume confirmation ({vol_ratio:.1f}x)"
+                elif vol_ratio >= 1.5:
+                    score += 0.2
+                elif vol_ratio < 0.5:
+                    score -= 0.2  # Low volume = weak signal
+        
+        # --- Momentum ---
+        close_5 = df.iloc[-5]['close'] if len(df) >= 5 else df.iloc[0]['close']
+        momentum = (latest['close'] - close_5) / close_5 * 100
+        
+        if momentum >= 2.0:
+            score += 0.4
+            reason = f"Strong momentum (+{momentum:.1f}%)"
+        elif momentum >= 1.0:
+            score += 0.2
+        elif momentum <= -2.0:
+            score -= 0.4
+            reason = f"Weak momentum ({momentum:.1f}%)"
+        elif momentum <= -1.0:
+            score -= 0.2
+        
+        # --- OBV Trend ---
+        obv = latest.get('OBV', None)
+        if obv is not None and len(df) >= 5:
+            obv_prev = df.iloc[-5].get('OBV', obv)
+            if obv > obv_prev * 1.02:
+                score += 0.2
+            elif obv < obv_prev * 0.98:
+                score -= 0.2
+        
+        return np.clip(score, -1, 1), reason
+    
+    def _prepare_features(self, df: pd.DataFrame) -> np.ndarray:
+        """Prepare feature vector for ML model."""
+        latest = df.iloc[-1]
+        
+        # Standard feature set matching model training
+        features = [
+            latest.get('RSI_14', 50) / 100,  # Normalize 0-1
+            latest.get('MACDh_12_26_9', 0),
+            latest.get('STOCHk_14_3_3', 50) / 100,
+            latest.get('ATRr_14', 0),
+            # Add more features as needed
+        ]
+        
+        # Fill NaN with neutral values
+        features = [0.5 if pd.isna(f) else f for f in features]
+        
+        return np.array(features)
+
+
+def create_signal_generator(model_path: Optional[str] = None) -> SignalGenerator:
+    """Factory function to create signal generator."""
+    return SignalGenerator(model_path=model_path)
