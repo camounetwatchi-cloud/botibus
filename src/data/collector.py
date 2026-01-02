@@ -6,9 +6,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 class DataCollector:
-    def __init__(self, exchange_id: str = 'binance'):
-        self.exchange_id = exchange_id
-        self.exchange = getattr(ccxt, exchange_id)()
+    def __init__(self, exchange_id: str = None):
+        self.exchange_id = exchange_id or settings.ACTIVE_EXCHANGE
+        self.exchange = getattr(ccxt, self.exchange_id)()
 
     async def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int = 1000) -> pd.DataFrame:
         """Fetch historical OHLCV data."""

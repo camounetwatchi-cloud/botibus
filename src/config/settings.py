@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     TELEGRAM_CHAT_ID: Optional[str] = None
 
     # System
+    ACTIVE_EXCHANGE: str = "binance"  # 'binance' or 'bybit'
     LOG_LEVEL: str = "INFO"
     DEVICE: str = "cuda"
     DATA_PATH: Path = Path("./data")

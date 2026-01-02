@@ -59,10 +59,15 @@ class OptimizedTradingBot:
         ))
         
         # Check if we have API keys for live trading
-        self.is_live = (
-            settings.BINANCE_API_KEY is not None and 
-            settings.BINANCE_SECRET_KEY is not None
-        )
+        if settings.ACTIVE_EXCHANGE == "binance":
+            self.is_live = (settings.BINANCE_API_KEY is not None and settings.BINANCE_SECRET_KEY is not None)
+            # Create symbols matching exchange format
+            self.symbols = settings.SYMBOLS
+        elif settings.ACTIVE_EXCHANGE == "bybit":
+            self.is_live = (settings.BYBIT_API_KEY is not None and settings.BYBIT_SECRET_KEY is not None)
+            # Bybit often uses same format 'BTC/USDT' for spot, but good to ensure
+            self.symbols = settings.SYMBOLS
+
         
         # Paper trading balance
         self.total_balance = 1000.0
@@ -75,12 +80,11 @@ class OptimizedTradingBot:
             self.total_balance = latest["total"]
             self.free_balance = latest["free"]
             self.used_balance = latest["used"]
+            
+        logger.info(f"Bot initialized on {settings.ACTIVE_EXCHANGE.upper()} - Mode: {'LIVE' if self.is_live else 'PAPER'}")
         
         # Track open positions for SL/TP monitoring
         self.open_positions: Dict[str, dict] = {}
-        
-        # Symbols to trade (configurable)
-        self.symbols = settings.SYMBOLS  # Trade all 10 symbols
         
         # Data cache
         self.price_cache: Dict[str, float] = {}
@@ -89,7 +93,6 @@ class OptimizedTradingBot:
         # Analysis cooldown (don't analyze too frequently)
         self.analysis_cooldown = timedelta(minutes=5)
         
-        logger.info(f"Bot initialized - Mode: {'LIVE' if self.is_live else 'PAPER'}")
         logger.info(f"Trading symbols: {self.symbols}")
     
     async def initialize(self):
