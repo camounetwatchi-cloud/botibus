@@ -1,6 +1,8 @@
 name: 🤖 Trading Bot 24/7
 
 on:
+  push:
+    branches: [ main ]
   schedule:
     # Réveil toutes les 15 minutes
     - cron: '*/15 * * * *'
