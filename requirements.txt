@@ -7,36 +7,27 @@ aiohttp>=3.9.0
 duckdb>=0.9.0
 polars>=0.20.0
 pyarrow>=14.0.0
-redis>=5.0.0
+# redis>=5.0.0  # Optionnel: cache distribué, non utilisé actuellement
 
 # === Feature Engineering ===
-# ta-lib>=0.4.28  # Requires system install
-pandas-ta>=0.3.14b
+pandas-ta==0.3.14b0
 numpy>=1.26.0
-# numba>=0.58.0  # Not yet compatible with Python 3.13
+pandas>=2.0.0
 
-# === Machine Learning ===
-torch>=2.1.0
-stable-baselines3>=2.2.0
-gymnasium>=0.29.0
-xgboost>=2.0.0
-lightgbm>=4.1.0
-optuna>=3.4.0
-# ray[tune]>=2.8.0  # Not yet compatible with Python 3.13
-
-# === Backtesting ===
-vectorbt>=0.26.0
+# === Machine Learning (Léger) ===
+xgboost>=2.0.0             # Utilisé par SignalGenerator
+scikit-learn>=1.3.0        # Utilitaires ML basiques
 
 # === Monitoring ===
 python-telegram-bot>=20.0
 streamlit>=1.29.0
 rich>=13.0.0
 loguru>=0.7.0
+psutil>=5.9.0
 
 # === Utils ===
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
 python-dotenv>=1.0.0
-schedule>=1.2.0
 typer>=0.9.0
 psycopg2-binary>=2.9.0
