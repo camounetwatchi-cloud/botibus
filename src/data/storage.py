@@ -142,9 +142,22 @@ class DataStorage:
                 )
             """
             
+            # Bot Status Table (for cloud heartbeat)
+            bot_status_sql = """
+                CREATE TABLE IF NOT EXISTS bot_status (
+                    id INTEGER PRIMARY KEY,
+                    status VARCHAR,
+                    last_heartbeat TIMESTAMP,
+                    open_positions INTEGER,
+                    exchange VARCHAR,
+                    mode VARCHAR
+                )
+            """
+            
             cursor.execute(ohlcv_sql)
             cursor.execute(trades_sql)
             cursor.execute(balance_sql)
+            cursor.execute(bot_status_sql)
             if self.use_postgres:
                 conn.commit()
 
@@ -305,3 +318,54 @@ class DataStorage:
         except Exception as e:
             logger.error(f"Error getting balance: {e}")
         return {"total": 0, "free": 0, "used": 0}
+
+    def update_bot_status(self, status: str, open_positions: int, exchange: str = "kraken", mode: str = "paper"):
+        """Update bot status heartbeat for cloud monitoring."""
+        if self.read_only:
+            return
+            
+        timestamp = pd.Timestamp.now()
+        
+        try:
+            with self._get_connection() as conn:
+                if self.use_postgres:
+                    cursor = conn.cursor()
+                    # Upsert bot status (id=1 always)
+                    cursor.execute("""
+                        INSERT INTO bot_status (id, status, last_heartbeat, open_positions, exchange, mode)
+                        VALUES (1, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            status = EXCLUDED.status,
+                            last_heartbeat = EXCLUDED.last_heartbeat,
+                            open_positions = EXCLUDED.open_positions,
+                            exchange = EXCLUDED.exchange,
+                            mode = EXCLUDED.mode
+                    """, [status, timestamp, open_positions, exchange, mode])
+                    conn.commit()
+                else:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO bot_status (id, status, last_heartbeat, open_positions, exchange, mode)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, [1, status, timestamp, open_positions, exchange, mode])
+                logger.debug(f"Bot status updated: {status}")
+        except Exception as e:
+            logger.error(f"Error updating bot status: {e}")
+
+    def get_bot_status(self) -> dict:
+        """Get current bot status for dashboard."""
+        query = "SELECT status, last_heartbeat, open_positions, exchange, mode FROM bot_status WHERE id = 1"
+        try:
+            with self._get_connection() as conn:
+                if self.use_postgres:
+                    cursor = conn.cursor()
+                    cursor.execute(query)
+                    res = cursor.fetchone()
+                else:
+                    res = conn.execute(query).fetchone()
+                    
+                if res:
+                    cols = ["status", "last_heartbeat", "open_positions", "exchange", "mode"]
+                    return dict(zip(cols, res))
+        except Exception as e:
+            logger.error(f"Error getting bot status: {e}")
+        return {"status": "unknown", "last_heartbeat": None, "open_positions": 0, "exchange": "", "mode": ""}

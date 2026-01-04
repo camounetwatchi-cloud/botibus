@@ -114,28 +114,54 @@ def main():
     if st.sidebar.button("🔄 Force Refresh", use_container_width=True):
         st.rerun()
     
-    # Emergency stop button
+    # Bot status from database heartbeat (for cloud deployment)
     st.sidebar.divider()
-    bot_proc = get_bot_process()
-    is_running = bot_proc is not None
+    bot_status = storage.get_bot_status()
+    last_heartbeat = bot_status.get("last_heartbeat")
+    
+    # Check if heartbeat is recent (within 20 minutes for GitHub Actions cron)
+    is_running = False
+    if last_heartbeat is not None:
+        try:
+            if isinstance(last_heartbeat, str):
+                last_heartbeat = pd.to_datetime(last_heartbeat)
+            time_since = datetime.now() - last_heartbeat.replace(tzinfo=None)
+            is_running = time_since < timedelta(minutes=20)
+        except:
+            pass
     
     if is_running:
-        st.sidebar.success("🤖 Bot is ONLINE")
-        if st.sidebar.button("🛑 STOP TRADING BOT", type="primary", use_container_width=True):
+        st.sidebar.success(f"🤖 Bot is ONLINE ({bot_status.get('exchange', 'unknown').upper()})")
+        st.sidebar.caption(f"Mode: {bot_status.get('mode', 'unknown')} | Positions: {bot_status.get('open_positions', 0)}")
+        if last_heartbeat:
+            st.sidebar.caption(f"Last heartbeat: {last_heartbeat.strftime('%H:%M:%S')}")
+    else:
+        st.sidebar.error("⚪ Bot is OFFLINE")
+        st.sidebar.caption("No recent heartbeat from cloud bot")
+        # Offer to check local process as fallback
+        bot_proc = get_bot_process()
+        if bot_proc is not None:
+            st.sidebar.info("📍 Local process detected")
+    
+    # Local bot control (still useful for development)
+    st.sidebar.divider()
+    st.sidebar.subheader("🖥️ Local Bot Control")
+    bot_proc = get_bot_process()
+    if bot_proc is not None:
+        if st.sidebar.button("🛑 STOP LOCAL BOT", type="primary", use_container_width=True):
             if stop_bot():
-                st.toast("Bot stopped successfully!")
+                st.toast("Local bot stopped!")
                 time.sleep(1)
                 st.rerun()
     else:
-        st.sidebar.error("⚪ Bot is OFFLINE")
-        if st.sidebar.button("🚀 START TRADING BOT", type="primary", use_container_width=True):
+        if st.sidebar.button("🚀 START LOCAL BOT", use_container_width=True):
             if start_bot():
-                st.toast("Bot starting...")
+                st.toast("Local bot starting...")
                 time.sleep(2)
                 st.rerun()
 
     if st.sidebar.button("🚨 EMERGENCY STOP ALL", use_container_width=True):
-        st.sidebar.warning("⚠️ Emergency stop signal sent! (Simulated)")
+        st.sidebar.warning("⚠️ Emergency stop signal sent!")
         stop_bot()
 
     # --- Data Loading ---

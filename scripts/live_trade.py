@@ -454,6 +454,15 @@ class OptimizedTradingBot:
             f"Positions: {len(self.open_positions)}/{self.risk_manager.config.max_open_positions} | "
             f"Signals: {signals_found} | Daily Trades: {risk_summary['daily_trades']}"
         )
+        
+        # Update bot status heartbeat for cloud monitoring
+        mode = "paper" if not self.is_live else "live"
+        self.storage.update_bot_status(
+            status="running",
+            open_positions=len(self.open_positions),
+            exchange=settings.ACTIVE_EXCHANGE,
+            mode=mode
+        )
     
     async def run(self):
         """Main bot loop."""

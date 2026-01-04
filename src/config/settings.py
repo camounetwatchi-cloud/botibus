@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     MAX_DAILY_TRADES: int = 9999             # Effectively unlimited
     COOLDOWN_MINUTES: int = 15               # Reduced cooldown for more active trading
     MAX_OPEN_POSITIONS: int = 30             # Max concurrent positions (paper trading)
-    MAX_OPEN_POSITIONS_LIVE: int = 5         # Safety limit for live trading
+    MAX_OPEN_POSITIONS_LIVE: int = 15         # Safety limit for live trading
     MAX_DAILY_LOSS: float = 0.05             # Stop trading at -5% daily
     MAX_TOTAL_EXPOSURE: float = 0.70         # Max 70% of capital exposed
     
