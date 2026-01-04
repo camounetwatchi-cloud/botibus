@@ -17,32 +17,44 @@ from src.config.settings import settings
 class RiskConfig:
     """Risk management configuration."""
     # Position sizing
-    max_position_percent: float = 0.15        # Max 15% of capital per position
-    min_trade_value: float = 100.0            # Minimum $100 per trade
-    risk_per_trade_percent: float = 0.02      # Risk 2% per trade
+    max_position_percent: float = settings.MAX_POSITION_PERCENT
+    min_trade_value: float = settings.MIN_TRADE_VALUE
+    risk_per_trade_percent: float = settings.RISK_PER_TRADE
     
     # Stop-loss / Take-profit
-    default_stop_loss: float = 0.025          # 2.5% stop loss
-    default_take_profit: float = 0.045        # 4.5% take profit (1.8:1 R:R)
-    trailing_stop_percent: float = 0.015      # 1.5% trailing stop
+    default_stop_loss: float = settings.DEFAULT_STOP_LOSS
+    default_take_profit: float = settings.DEFAULT_TAKE_PROFIT
+    trailing_stop_activation: float = settings.TRAILING_STOP_ACTIVATION
+    trailing_stop_distance: float = settings.TRAILING_STOP_DISTANCE
+    
+    # Dynamic TP based on volatility
+    dynamic_tp_low_vol: float = settings.DYNAMIC_TP_LOW_VOL
+    dynamic_tp_normal: float = settings.DYNAMIC_TP_NORMAL
+    dynamic_tp_high_vol: float = settings.DYNAMIC_TP_HIGH_VOL
     
     # Trade frequency limits
     max_daily_trades: int = settings.MAX_DAILY_TRADES
-    max_trades_per_symbol: int = 2            # Max 2 open trades per symbol
+    max_trades_per_symbol: int = 3            # Max 3 open trades per symbol
     cooldown_minutes: int = settings.COOLDOWN_MINUTES
     
     # Portfolio limits
     max_open_positions: int = settings.MAX_OPEN_POSITIONS
-    max_total_exposure: float = 0.60          # Max 60% of capital exposed
-    max_correlated_positions: int = 3         # Max 3 highly correlated
+    max_total_exposure: float = settings.MAX_TOTAL_EXPOSURE
+    max_correlated_positions: int = 5         # Max 5 highly correlated
     
     # Emergency controls
     max_daily_loss_percent: float = settings.MAX_DAILY_LOSS
     max_drawdown_percent: float = 0.15        # Pause at -15% drawdown
     
     # Signal thresholds
-    min_confidence: float = 0.55              # Minimum signal confidence
-    strong_signal_confidence: float = 0.75    # Confidence for larger positions
+    min_confidence: float = settings.MIN_SIGNAL_CONFIDENCE
+    strong_signal_confidence: float = settings.STRONG_SIGNAL_THRESHOLD
+    
+    # Confidence multipliers
+    confidence_mult_low: float = settings.CONFIDENCE_MULTIPLIER_LOW
+    confidence_mult_medium: float = settings.CONFIDENCE_MULTIPLIER_MEDIUM
+    confidence_mult_high: float = settings.CONFIDENCE_MULTIPLIER_HIGH
+    confidence_mult_very_high: float = settings.CONFIDENCE_MULTIPLIER_VERY_HIGH
 
 
 @dataclass
@@ -142,16 +154,18 @@ class RiskManager:
         balance: float, 
         price: float, 
         confidence: float,
-        volatility_factor: float = 1.0
+        volatility_factor: float = 1.0,
+        atr: float = 0.0
     ) -> Tuple[float, float, float]:
         """
-        Calculate position size with risk management.
+        Calculate position size with dynamic risk management.
         
         Args:
             balance: Available balance
             price: Asset price
             confidence: Signal confidence 0-1
             volatility_factor: Multiplier for high volatility (reduce size)
+            atr: Average True Range for dynamic TP calculation
             
         Returns:
             Tuple of (position_size, stop_loss_price, take_profit_price)
@@ -163,12 +177,9 @@ class RiskManager:
         risk_amount = balance * self.config.risk_per_trade_percent
         position_value = risk_amount / self.config.default_stop_loss
         
-        # Adjust for confidence (higher confidence = larger position)
-        if confidence >= self.config.strong_signal_confidence:
-            confidence_multiplier = 1.2
-        elif confidence >= self.config.min_confidence:
-            confidence_multiplier = 0.8 + (confidence - self.config.min_confidence) * 2
-        else:
+        # Confidence-based position sizing (tiered multipliers)
+        confidence_multiplier = self._get_confidence_multiplier(confidence)
+        if confidence_multiplier == 0:
             return 0, 0, 0  # Below minimum confidence
         
         position_value *= confidence_multiplier
@@ -187,11 +198,98 @@ class RiskManager:
         # Calculate size in asset units
         position_size = position_value / price
         
-        # Calculate stop loss and take profit prices
+        # Calculate stop loss price
         stop_loss = price * (1 - self.config.default_stop_loss)
-        take_profit = price * (1 + self.config.default_take_profit)
+        
+        # Calculate DYNAMIC take profit based on volatility
+        take_profit = self.calculate_dynamic_take_profit(price, atr)
         
         return position_size, stop_loss, take_profit
+    
+    def _get_confidence_multiplier(self, confidence: float) -> float:
+        """Get position size multiplier based on confidence level."""
+        if confidence < self.config.min_confidence:
+            return 0  # Don't trade
+        elif confidence < 0.60:
+            return self.config.confidence_mult_low  # 0.5x
+        elif confidence < 0.70:
+            return self.config.confidence_mult_medium  # 0.8x
+        elif confidence < 0.85:
+            return self.config.confidence_mult_high  # 1.0x
+        else:
+            return self.config.confidence_mult_very_high  # 1.2x
+    
+    def calculate_dynamic_take_profit(self, price: float, atr: float = 0.0) -> float:
+        """
+        Calculate dynamic take-profit based on volatility (ATR).
+        
+        Args:
+            price: Current price
+            atr: Average True Range value
+            
+        Returns:
+            Take-profit price
+        """
+        if atr <= 0 or price <= 0:
+            # Default TP if no ATR available
+            return price * (1 + self.config.default_take_profit)
+        
+        atr_percent = (atr / price) * 100
+        
+        if atr_percent < 1.5:  # Low volatility
+            tp_percent = self.config.dynamic_tp_low_vol  # 3%
+        elif atr_percent < 3.0:  # Normal volatility
+            tp_percent = self.config.dynamic_tp_normal  # 4.5%
+        else:  # High volatility
+            tp_percent = self.config.dynamic_tp_high_vol  # 6%
+        
+        return price * (1 + tp_percent)
+    
+    def calculate_trailing_stop(
+        self,
+        entry_price: float,
+        current_price: float,
+        peak_price: float,
+        side: str = 'buy'
+    ) -> Tuple[bool, float, str]:
+        """
+        Calculate trailing stop level and check if triggered.
+        
+        Args:
+            entry_price: Original entry price
+            current_price: Current market price
+            peak_price: Highest price since entry (for longs)
+            side: 'buy' or 'sell'
+            
+        Returns:
+            Tuple of (should_close, trailing_stop_price, reason)
+        """
+        if side == 'buy':
+            # Calculate profit percentage
+            profit_pct = (peak_price - entry_price) / entry_price
+            
+            # Check if trailing stop should be active
+            if profit_pct >= self.config.trailing_stop_activation:
+                # Calculate trailing stop level
+                trailing_stop = peak_price * (1 - self.config.trailing_stop_distance)
+                
+                if current_price <= trailing_stop:
+                    return True, trailing_stop, f"Trailing stop hit at {current_price:.2f}"
+                    
+                return False, trailing_stop, f"Trailing active at {trailing_stop:.2f}"
+        else:
+            # Short position - inverted logic
+            profit_pct = (entry_price - peak_price) / entry_price
+            
+            if profit_pct >= self.config.trailing_stop_activation:
+                trailing_stop = peak_price * (1 + self.config.trailing_stop_distance)
+                
+                if current_price >= trailing_stop:
+                    return True, trailing_stop, f"Trailing stop hit at {current_price:.2f}"
+                    
+                return False, trailing_stop, f"Trailing active at {trailing_stop:.2f}"
+        
+        return False, 0, "Trailing not yet active"
     
     def should_close_position(
         self, 

@@ -134,6 +134,32 @@ $env:PYTHONPATH="."; .\venv\Scripts\python.exe -m streamlit run src/monitoring/d
 
 ---
 
+## ☁️ Déploiement 24/7 (100% Gratuit)
+
+### Option Recommandée : GitHub Actions + Supabase
+
+**Avantage** : Aucune carte bancaire requise !
+
+#### 1. Base de données Supabase
+1. Créez un compte sur [Supabase](https://supabase.com/) via GitHub
+2. Nouveau projet → Nom: `TradingBot`, mot de passe fort (notez-le !)
+3. **Settings → Database → Connection String → URI**
+4. Copiez l'URL et remplacez `[YOUR-PASSWORD]` par votre mot de passe
+
+#### 2. GitHub Secrets
+Dans votre repo : **Settings → Secrets → Actions**
+
+| Secret | Valeur |
+|--------|--------|
+| `KRAKEN_API_KEY` | Votre clé API Kraken |
+| `KRAKEN_SECRET_KEY` | Votre secret Kraken |
+| `DATABASE_URL` | L'URL Supabase complète |
+
+#### 3. Activation
+Le bot se lance automatiquement via GitHub Actions (`.github/workflows/`).
+
+---
+
 ## 📞 Support
 
 Pour toute question ou problème :
@@ -141,8 +167,10 @@ Pour toute question ou problème :
 2. Assurez-vous que l'environnement virtuel est activé
 3. Consultez les logs dans les fenêtres de terminal
 
+**Fichiers de dépannage** : `TROUBLESHOOTING.md`, `VERIFICATION_CHECKLIST.md`
+
 ---
 
-**Version :** 1.0  
+**Version :** 1.1  
 **Statut :** Production Ready ✅  
-**Dernière mise à jour :** 2026-01-02
+**Dernière mise à jour :** 2026-01-03

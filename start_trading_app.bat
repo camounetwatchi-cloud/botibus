@@ -36,22 +36,23 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
-echo [3/4] Starting trading bot (Live Session)...
+echo [3/4] Launching unified trading terminal...
 set "PYTHONPATH=%CD%"
-start "Trading Bot (Live)" cmd /k "title Trading Bot - LIVE && color 0E && set PYTHONPATH=%CD% && venv\Scripts\python.exe scripts\live_trade.py"
 
+timeout /t 2 /nobreak >nul
 echo.
-echo [4/4] Launching monitoring dashboard...
-timeout /t 3 /nobreak >nul
-start "Trading Dashboard" cmd /k "title Trading Dashboard && color 09 && set PYTHONPATH=%CD% && venv\Scripts\python.exe -m streamlit run src\monitoring\dashboard.py --server.port 8501"
+echo Starting Dashboard...
+start "Antigravity Trading Terminal" cmd /c "title Trading Terminal && color 0B && set PYTHONPATH=%CD% && venv\Scripts\python.exe -m streamlit run src\monitoring\dashboard.py --server.port 8501"
 
 echo.
 echo =====================================================
-echo ALL SERVICES STARTED SUCCESSFULLY
+echo TERMINAL LAUNCHED SUCCESSFULLY
 echo =====================================================
 echo.
-echo The dashboard will open in your browser automatically.
+echo The dashboard will open in your browser. 
+echo Use the SIDEBAR in the dashboard to START or STOP the bot.
+echo.
 echo You can close this launcher window now.
 echo.
-timeout /t 10
+timeout /t 8
 exit

@@ -15,13 +15,41 @@ class DataStorage:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.read_only = read_only
         self.use_postgres = settings.DATABASE_URL is not None
+        self._postgres_available = True  # Track if PostgreSQL is reachable
         
         if self.use_postgres:
-            logger.info("Using PostgreSQL (Supabase) storage")
-        else:
+            # Test connection on init
+            if self._test_postgres_connection():
+                logger.info("Using PostgreSQL (Supabase) storage")
+            else:
+                logger.warning("PostgreSQL unavailable, falling back to DuckDB")
+                self.use_postgres = False
+                self._postgres_available = False
+        
+        if not self.use_postgres:
             logger.info(f"Using local DuckDB storage at {self.db_path}")
             
         self._init_tables()
+
+    def _test_postgres_connection(self) -> bool:
+        """Test PostgreSQL connection with retry logic."""
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                conn = psycopg2.connect(
+                    settings.DATABASE_URL,
+                    connect_timeout=10,
+                    options="-c statement_timeout=30000"
+                )
+                conn.close()
+                return True
+            except Exception as e:
+                logger.warning(f"PostgreSQL connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+        return False
 
     @contextmanager
     def _get_connection(self):
@@ -29,11 +57,19 @@ class DataStorage:
         conn = None
         if self.use_postgres:
             try:
-                conn = psycopg2.connect(settings.DATABASE_URL)
+                conn = psycopg2.connect(
+                    settings.DATABASE_URL,
+                    connect_timeout=10,
+                    options="-c statement_timeout=30000"
+                )
                 yield conn
             except Exception as e:
                 logger.error(f"PostgreSQL Connection Error: {e}")
-                raise e
+                # Fallback to DuckDB for this operation
+                logger.warning("Falling back to DuckDB for this operation")
+                self.use_postgres = False
+                conn = duckdb.connect(str(self.db_path), read_only=self.read_only)
+                yield conn
             finally:
                 if conn:
                     conn.close()

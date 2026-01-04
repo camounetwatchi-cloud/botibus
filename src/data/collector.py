@@ -1,6 +1,7 @@
 import ccxt.pro as ccxt
 import asyncio
 from loguru import logger
+from src.config.settings import settings
 from typing import List, Dict
 import pandas as pd
 from datetime import datetime, timedelta

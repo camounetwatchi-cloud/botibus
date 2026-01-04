@@ -11,10 +11,10 @@ class TradeExecutor:
                 'apiKey': settings.BINANCE_API_KEY,
                 'secret': settings.BINANCE_SECRET_KEY,
             }
-        elif exchange_id == "bybit":
+        elif exchange_id == "kraken":
             config = {
-                'apiKey': settings.BYBIT_API_KEY,
-                'secret': settings.BYBIT_SECRET_KEY,
+                'apiKey': settings.KRAKEN_API_KEY,
+                'secret': settings.KRAKEN_SECRET_KEY,
             }
         else:
             raise ValueError(f"Unsupported exchange: {exchange_id}")

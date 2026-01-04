@@ -35,6 +35,10 @@ class TechnicalFeatures:
         df.columns = df.columns.str.lower()
         
         try:
+            # Set datetime index for time-based indicators (VWAP)
+            if 'timestamp' in df.columns:
+                df.set_index('timestamp', inplace=True)
+            
             # === TREND INDICATORS ===
             # Simple Moving Averages
             df.ta.sma(length=20, append=True)
@@ -110,6 +114,9 @@ class TechnicalFeatures:
             df = df.ffill().bfill()
             
             logger.debug(f"Added {len(df.columns)} technical features")
+            
+            # Reset index to make timestamp a column again if it was set
+            df.reset_index(inplace=True)
             
         except Exception as e:
             logger.error(f"Error calculating technical features: {e}")

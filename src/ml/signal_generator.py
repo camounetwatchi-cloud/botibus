@@ -21,11 +21,12 @@ class MLSignal:
     ml_score: float
     volume_score: float
     reasons: List[str]
+    atr: float = 0.0  # ATR for dynamic TP calculation
     
     @property
     def is_actionable(self) -> bool:
         """Check if signal is strong enough to act on."""
-        return self.action != "HOLD" and self.confidence >= 0.55
+        return self.action != "HOLD" and self.confidence >= 0.50
 
 
 class SignalGenerator:
@@ -42,9 +43,10 @@ class SignalGenerator:
         'volume_momentum': 0.20,
     }
     
-    # Thresholds
-    MIN_CONFIDENCE = 0.55
+    # Thresholds - lowered for more trading opportunities
+    MIN_CONFIDENCE = 0.50
     STRONG_SIGNAL_THRESHOLD = 0.70
+    ACTION_THRESHOLD = 0.30  # Lowered from 0.35
     
     def __init__(self, model_path: Optional[str] = None):
         """
@@ -115,9 +117,10 @@ class SignalGenerator:
         # Determine action and confidence
         confidence = abs(normalized_score)
         
-        if normalized_score >= 0.35 and confidence >= self.MIN_CONFIDENCE:
+        # Use lower threshold for more trades (0.30 vs 0.35)
+        if normalized_score >= self.ACTION_THRESHOLD and confidence >= self.MIN_CONFIDENCE:
             action = "BUY"
-        elif normalized_score <= -0.35 and confidence >= self.MIN_CONFIDENCE:
+        elif normalized_score <= -self.ACTION_THRESHOLD and confidence >= self.MIN_CONFIDENCE:
             action = "SELL"
         else:
             action = "HOLD"

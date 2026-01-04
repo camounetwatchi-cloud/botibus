@@ -1,10 +1,18 @@
 import streamlit as st
+import sys
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from src.data.storage import DataStorage
 from datetime import datetime, timedelta
 import time
+import subprocess
+import os
+import signal
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
 
@@ -14,6 +22,57 @@ def load_css(file_name):
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
     except FileNotFoundError:
         pass
+
+def get_bot_process():
+    """Find the live_trade.py process if it's running."""
+    if psutil is None:
+        return None
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmdline = proc.info['cmdline']
+            if cmdline and any('live_trade.py' in arg for arg in cmdline):
+                return proc
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return None
+
+def start_bot():
+    """Start the trading bot in a separate process."""
+    try:
+        # Use the same python executable from the current environment
+        python_exe = sys.executable
+        script_path = os.path.join(os.getcwd(), "scripts", "live_trade.py")
+        
+        # Start the process - using subprocess.Popen to let it run in background
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.getcwd()
+        
+        process = subprocess.Popen(
+            [python_exe, script_path],
+            cwd=os.getcwd(),
+            env=env,
+            creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+        )
+        return True
+    except Exception as e:
+        st.error(f"Failed to start bot: {e}")
+        return False
+
+def stop_bot():
+    """Stop the trading bot process."""
+    proc = get_bot_process()
+    if proc:
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+            return True
+        except Exception as e:
+            try:
+                proc.kill()
+                return True
+            except:
+                st.error(f"Failed to stop bot: {e}")
+    return False
 
 def main():
     st.set_page_config(
@@ -57,9 +116,27 @@ def main():
     
     # Emergency stop button
     st.sidebar.divider()
-    if st.sidebar.button("🛑 EMERGENCY STOP", type="primary", use_container_width=True):
+    bot_proc = get_bot_process()
+    is_running = bot_proc is not None
+    
+    if is_running:
+        st.sidebar.success("🤖 Bot is ONLINE")
+        if st.sidebar.button("🛑 STOP TRADING BOT", type="primary", use_container_width=True):
+            if stop_bot():
+                st.toast("Bot stopped successfully!")
+                time.sleep(1)
+                st.rerun()
+    else:
+        st.sidebar.error("⚪ Bot is OFFLINE")
+        if st.sidebar.button("🚀 START TRADING BOT", type="primary", use_container_width=True):
+            if start_bot():
+                st.toast("Bot starting...")
+                time.sleep(2)
+                st.rerun()
+
+    if st.sidebar.button("🚨 EMERGENCY STOP ALL", use_container_width=True):
         st.sidebar.warning("⚠️ Emergency stop signal sent! (Simulated)")
-        st.sidebar.info("In production, this would halt all trading operations.")
+        stop_bot()
 
     # --- Data Loading ---
     balance_info = storage.get_latest_balance()
@@ -290,7 +367,11 @@ def main():
         with col1:
             st.success("✅ Database Connected")
         with col2:
-            st.success("✅ Bot Running")
+            bot_proc = get_bot_process()
+            if bot_proc:
+                st.success(f"✅ Bot Running (PID: {bot_proc.pid})")
+            else:
+                st.error("❌ Bot Offline")
         with col3:
             st.success("✅ Data Feed Active")
 

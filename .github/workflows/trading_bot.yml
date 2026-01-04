@@ -36,13 +36,25 @@ jobs:
         cd ..
         pip install -r requirements.txt
 
+    - name: 🌐 Ensure IPv4 Connectivity
+      run: |
+        # Disable IPv6 to force IPv4 (fixes Supabase connection issues)
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+        sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
     - name: 🚀 Run Trading Cycle
       env:
-        # Secrets à configurer dans les paramètres GitHub du repo
-        BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
-        BINANCE_SECRET_KEY: ${{ secrets.BINANCE_SECRET_KEY }}
+        # Kraken API Keys (configured in GitHub Secrets)
+        KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+        KRAKEN_SECRET_KEY: ${{ secrets.KRAKEN_SECRET_KEY }}
+        # Database (use Supabase Pooler URL for IPv4 compatibility)
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        # Trading configuration
+        ACTIVE_EXCHANGE: kraken
+        PAPER_TRADING: ${{ secrets.PAPER_TRADING || 'true' }}
+        # Notifications (optional)
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         PYTHONPATH: .
       run: python scripts/gh_actions_trade.py
+

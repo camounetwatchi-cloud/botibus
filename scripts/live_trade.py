@@ -11,6 +11,12 @@ import sys
 import os
 import asyncio
 import uuid
+from pathlib import Path
+
+# Add project root to python path
+project_root = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_root))
+
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
 import pandas as pd
@@ -51,22 +57,31 @@ class OptimizedTradingBot:
         self.storage = DataStorage()
         self.collector = DataCollector()
         self.signal_generator = SignalGenerator()
+        
+        # Check if we have API keys for live trading
+        exchange_id = settings.ACTIVE_EXCHANGE
+        if exchange_id == "binance":
+            self.is_live = (settings.BINANCE_API_KEY is not None and settings.BINANCE_SECRET_KEY is not None)
+        elif exchange_id == "bybit":
+            self.is_live = (settings.BYBIT_API_KEY is not None and settings.BYBIT_SECRET_KEY is not None)
+        elif exchange_id == "kraken":
+            self.is_live = (settings.KRAKEN_API_KEY is not None and settings.KRAKEN_SECRET_KEY is not None)
+        
+        # Override with setting
+        if settings.PAPER_TRADING:
+            self.is_live = False
+        
+        # Use appropriate max positions based on mode
+        max_positions = settings.MAX_OPEN_POSITIONS if not self.is_live else settings.MAX_OPEN_POSITIONS_LIVE
+        
         self.risk_manager = RiskManager(RiskConfig(
             max_daily_trades=settings.MAX_DAILY_TRADES,
-            max_open_positions=settings.MAX_OPEN_POSITIONS,
+            max_open_positions=max_positions,
             max_daily_loss_percent=settings.MAX_DAILY_LOSS,
             cooldown_minutes=settings.COOLDOWN_MINUTES
         ))
-        
-        # Check if we have API keys for live trading
-        if settings.ACTIVE_EXCHANGE == "binance":
-            self.is_live = (settings.BINANCE_API_KEY is not None and settings.BINANCE_SECRET_KEY is not None)
-            # Create symbols matching exchange format
-            self.symbols = settings.SYMBOLS
-        elif settings.ACTIVE_EXCHANGE == "bybit":
-            self.is_live = (settings.BYBIT_API_KEY is not None and settings.BYBIT_SECRET_KEY is not None)
-            # Bybit often uses same format 'BTC/USDT' for spot, but good to ensure
-            self.symbols = settings.SYMBOLS
+            
+        self.symbols = settings.SYMBOLS
 
         
         # Paper trading balance
@@ -82,16 +97,21 @@ class OptimizedTradingBot:
             self.used_balance = latest["used"]
             
         logger.info(f"Bot initialized on {settings.ACTIVE_EXCHANGE.upper()} - Mode: {'LIVE' if self.is_live else 'PAPER'}")
+        logger.info(f"Max positions: {max_positions} | Min trade: ${settings.MIN_TRADE_VALUE}")
         
         # Track open positions for SL/TP monitoring
         self.open_positions: Dict[str, dict] = {}
         
+        # Track peak prices for trailing stops
+        self.position_peaks: Dict[str, float] = {}
+        
         # Data cache
         self.price_cache: Dict[str, float] = {}
+        self.atr_cache: Dict[str, float] = {}  # Cache ATR for dynamic TP
         self.last_analysis: Dict[str, datetime] = {}
         
-        # Analysis cooldown (don't analyze too frequently)
-        self.analysis_cooldown = timedelta(minutes=5)
+        # Analysis cooldown (reduced for more active trading)
+        self.analysis_cooldown = timedelta(minutes=3)
         
         logger.info(f"Trading symbols: {self.symbols}")
     
@@ -129,7 +149,7 @@ class OptimizedTradingBot:
             try:
                 df = await self.collector.fetch_ohlcv(symbol, "1h", limit=200)
                 if not df.empty:
-                    self.storage.save_ohlcv(df, symbol, "binance", "1h")
+                    self.storage.save_ohlcv(df, symbol, settings.ACTIVE_EXCHANGE, "1h")
                     logger.info(f"[OK] Loaded {len(df)} candles for {symbol}")
             except Exception as e:
                 logger.error(f"Error loading {symbol}: {e}")
@@ -151,10 +171,21 @@ class OptimizedTradingBot:
                 return None, None
             
             # Save to storage
-            self.storage.save_ohlcv(df, symbol, "binance", "1h")
+            self.storage.save_ohlcv(df, symbol, settings.ACTIVE_EXCHANGE, "1h")
             
             current_price = df.iloc[-1]['close']
             self.price_cache[symbol] = current_price
+            
+            # Get ATR for dynamic TP calculation
+            atr = df.iloc[-1].get('ATRr_14', 0) if 'ATRr_14' in df.columns else 0
+            if atr == 0 and len(df) >= 14:
+                # Calculate ATR manually if not present
+                high_low = df['high'] - df['low']
+                high_close = abs(df['high'] - df['close'].shift())
+                low_close = abs(df['low'] - df['close'].shift())
+                tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+                atr = tr.tail(14).mean()
+            self.atr_cache[symbol] = atr
             
             # Check if we should analyze (cooldown)
             now = datetime.now()
@@ -168,6 +199,10 @@ class OptimizedTradingBot:
             # Generate signal
             signal = self.signal_generator.generate(df, symbol)
             
+            # Attach ATR to signal for dynamic TP
+            if signal:
+                signal.atr = atr
+            
             self.last_analysis[symbol] = now
             
             return current_price, signal
@@ -177,7 +212,7 @@ class OptimizedTradingBot:
             return None, None
     
     async def check_open_positions(self):
-        """Check open positions for stop-loss or take-profit."""
+        """Check open positions for stop-loss, take-profit, or trailing stop."""
         if not self.open_positions:
             return
         
@@ -194,6 +229,16 @@ class OptimizedTradingBot:
             side = position['side']
             amount = position['amount']
             
+            # Update peak price for trailing stop
+            if trade_id not in self.position_peaks:
+                self.position_peaks[trade_id] = current_price
+            elif side == 'buy' and current_price > self.position_peaks[trade_id]:
+                self.position_peaks[trade_id] = current_price
+            elif side == 'sell' and current_price < self.position_peaks[trade_id]:
+                self.position_peaks[trade_id] = current_price
+            
+            peak_price = self.position_peaks[trade_id]
+            
             # Calculate P&L
             if side == 'buy':
                 pnl_pct = (current_price - entry_price) / entry_price
@@ -202,22 +247,28 @@ class OptimizedTradingBot:
             
             pnl = pnl_pct * (entry_price * amount)
             
+            # Check TRAILING STOP first (higher priority)
+            should_trail, trail_price, trail_reason = self.risk_manager.calculate_trailing_stop(
+                entry_price, current_price, peak_price, side
+            )
+            if should_trail:
+                positions_to_close.append((trade_id, current_price, "TRAILING_STOP", pnl))
+                logger.info(f"[TRAILING STOP] {symbol} | Peak: ${peak_price:.2f} | PnL: {pnl_pct*100:.2f}%")
+                continue
+            
             # Check stop-loss (2.5%)
-            if pnl_pct <= -0.025:
+            if pnl_pct <= -settings.DEFAULT_STOP_LOSS:
                 positions_to_close.append((trade_id, current_price, "STOP_LOSS", pnl))
                 logger.warning(f"[STOP LOSS] {symbol} | PnL: {pnl_pct*100:.2f}%")
             
-            # Check take-profit (4.5%)
-            elif pnl_pct >= 0.045:
-                positions_to_close.append((trade_id, current_price, "TAKE_PROFIT", pnl))
-                logger.info(f"[TAKE PROFIT] {symbol} | PnL: {pnl_pct*100:.2f}%")
+            # Check dynamic take-profit
+            atr = self.atr_cache.get(symbol, 0)
+            dynamic_tp = self.risk_manager.calculate_dynamic_take_profit(entry_price, atr)
+            tp_pct = (dynamic_tp - entry_price) / entry_price
             
-            # Check trailing stop (if profit > 2%, stop at 1.5% profit)
-            elif pnl_pct >= 0.02:
-                trailing_trigger = 0.015  # Trigger trailing stop at 1.5%
-                if pnl_pct < trailing_trigger:
-                    positions_to_close.append((trade_id, current_price, "TRAILING_STOP", pnl))
-                    logger.info(f"[TRAILING STOP] {symbol} | PnL: {pnl_pct*100:.2f}%")
+            if pnl_pct >= tp_pct:
+                positions_to_close.append((trade_id, current_price, "TAKE_PROFIT", pnl))
+                logger.info(f"[TAKE PROFIT] {symbol} | Target: {tp_pct*100:.1f}% | PnL: {pnl_pct*100:.2f}%")
         
         # Close positions
         for trade_id, exit_price, reason, pnl in positions_to_close:
@@ -260,6 +311,10 @@ class OptimizedTradingBot:
         # Remove from tracking
         del self.open_positions[trade_id]
         
+        # Clean up peak tracking
+        if trade_id in self.position_peaks:
+            del self.position_peaks[trade_id]
+        
         status = "[WIN]" if net_pnl >= 0 else "[LOSS]"
         logger.info(
             f"{status} CLOSED {position['side'].upper()} {symbol} | "
@@ -278,11 +333,15 @@ class OptimizedTradingBot:
             logger.debug(f"[{symbol}] Trade blocked: {reason}")
             return
         
-        # Calculate position size
+        # Get ATR for dynamic TP calculation
+        atr = getattr(signal, 'atr', 0) or self.atr_cache.get(symbol, 0)
+        
+        # Calculate position size with dynamic TP
         position_size, stop_loss, take_profit = self.risk_manager.calculate_position_size(
             balance=self.free_balance,
             price=current_price,
-            confidence=signal.confidence
+            confidence=signal.confidence,
+            atr=atr
         )
         
         if position_size <= 0:
@@ -333,16 +392,22 @@ class OptimizedTradingBot:
             'take_profit': take_profit,
         }
         
+        # Initialize peak price tracking
+        self.position_peaks[trade_id] = current_price
+        
+        # Calculate TP percentage for logging
+        tp_pct = ((take_profit - current_price) / current_price) * 100
+        
         logger.info(
             f"[OPEN] {side.upper()} {symbol} | "
             f"Size: {position_size:.6f} @ ${current_price:,.2f} | "
             f"Value: ${trade_value:,.2f} | Confidence: {signal.confidence:.0%}"
         )
         logger.info(f"   Reasons: {', '.join(signal.reasons[:3])}")
-        logger.info(f"   SL: ${stop_loss:,.2f} | TP: ${take_profit:,.2f}")
+        logger.info(f"   SL: ${stop_loss:,.2f} (-2.5%) | TP: ${take_profit:,.2f} (+{tp_pct:.1f}%)")
     
     async def run_cycle(self):
-        """Run one trading cycle across all symbols."""
+        """Run one trading cycle across all symbols with parallel analysis."""
         logger.debug("Starting trading cycle...")
         
         # Check risk limits first
@@ -353,33 +418,41 @@ class OptimizedTradingBot:
             logger.warning("Trading paused due to risk limits")
             return
         
-        # Check open positions for SL/TP
+        # Check open positions for SL/TP/Trailing
         await self.check_open_positions()
         
-        # Analyze each symbol
-        for symbol in self.symbols:
-            try:
-                price, signal = await self.fetch_and_analyze(symbol)
-                
-                if price is None:
-                    continue
-                
-                # Log current state
-                logger.debug(f"[{symbol}] Price: ${price:,.2f}")
-                
-                # Execute if we have a strong signal
-                if signal and signal.is_actionable:
-                    await self.execute_signal(symbol, signal, price)
-                    
-            except Exception as e:
-                logger.error(f"Error processing {symbol}: {e}")
+        # PARALLEL analysis of all symbols for faster execution
+        results = await asyncio.gather(*[
+            self.fetch_and_analyze(symbol) 
+            for symbol in self.symbols
+        ], return_exceptions=True)
+        
+        # Process results
+        signals_found = 0
+        for symbol, result in zip(self.symbols, results):
+            if isinstance(result, Exception):
+                logger.error(f"Error analyzing {symbol}: {result}")
+                continue
+            
+            price, signal = result
+            
+            if price is None:
+                continue
+            
+            # Log current state
+            logger.debug(f"[{symbol}] Price: ${price:,.2f}")
+            
+            # Execute if we have a strong signal
+            if signal and signal.is_actionable:
+                signals_found += 1
+                await self.execute_signal(symbol, signal, price)
         
         # Summary log
         logger.info(
             f"[BALANCE] Total: ${self.total_balance:,.2f} | "
             f"Free: ${self.free_balance:,.2f} | "
-            f"Positions: {len(self.open_positions)} | "
-            f"Daily Trades: {risk_summary['daily_trades']}"
+            f"Positions: {len(self.open_positions)}/{self.risk_manager.config.max_open_positions} | "
+            f"Signals: {signals_found} | Daily Trades: {risk_summary['daily_trades']}"
         )
     
     async def run(self):
