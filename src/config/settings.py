@@ -29,8 +29,17 @@ class Settings(BaseSettings):
     # Trading Defaults
     TIMEFRAMES: List[str] = ["15m", "1h", "4h", "1d"]
     SYMBOLS: List[str] = [
-        "BTC/EUR", "ETH/EUR", "SOL/EUR", "XRP/EUR", 
-        "BTC/USDC", "ETH/USDC", "SOL/USDC"
+        # Validated Kraken EUR pairs (49 pairs - verified 2026-01-05)
+        "BTC/EUR", "ETH/EUR", "SOL/EUR", "XRP/EUR", "ADA/EUR",
+        "DOGE/EUR", "AVAX/EUR", "LINK/EUR", "DOT/EUR", "DAI/EUR",
+        "LTC/EUR", "ATOM/EUR", "UNI/EUR", "NEAR/EUR", "FIL/EUR",
+        "APT/EUR", "ARB/EUR", "OP/EUR", "AAVE/EUR", "GRT/EUR",
+        "ALGO/EUR", "XLM/EUR", "ETC/EUR", "XTZ/EUR", "SHIB/EUR",
+        "BCH/EUR", "TRX/EUR", "VET/EUR", "SAND/EUR", "MANA/EUR",
+        "CHZ/EUR", "FLOW/EUR", "FET/EUR", "RUNE/EUR", "INJ/EUR",
+        "SUI/EUR", "RENDER/EUR", "IMX/EUR", "HBAR/EUR", "STX/EUR",
+        "PEPE/EUR", "WIF/EUR", "BONK/EUR", "KAVA/EUR", "AXS/EUR",
+        "ICP/EUR", "TON/EUR", "POL/EUR", "BNB/EUR",
     ]
     
     # === OPTIMIZED TRADING PARAMETERS ===
@@ -43,7 +52,7 @@ class Settings(BaseSettings):
     DEFAULT_STOP_LOSS: float = 0.025         # 2.5% stop loss
     DEFAULT_TAKE_PROFIT: float = 0.045       # 4.5% take profit (base, dynamic in code)
     MAX_DAILY_TRADES: int = 9999             # Effectively unlimited
-    COOLDOWN_MINUTES: int = 15               # Reduced cooldown for more active trading
+    COOLDOWN_MINUTES: int = 5                # Aggressive: reduced cooldown for faster re-entry
     MAX_OPEN_POSITIONS: int = 30             # Max concurrent positions (paper trading)
     MAX_OPEN_POSITIONS_LIVE: int = 15         # Safety limit for live trading
     MAX_DAILY_LOSS: float = 0.05             # Stop trading at -5% daily
@@ -56,8 +65,8 @@ class Settings(BaseSettings):
     DYNAMIC_TP_NORMAL: float = 0.045        # TP for normal volatility (4.5%)
     DYNAMIC_TP_HIGH_VOL: float = 0.06       # TP for high volatility (6%)
     
-    # Signal Thresholds
-    MIN_SIGNAL_CONFIDENCE: float = 0.50      # Lower threshold for more trades
+    # Signal Thresholds (AGGRESSIVE MODE)
+    MIN_SIGNAL_CONFIDENCE: float = 0.20      # Lowered for more signals
     STRONG_SIGNAL_THRESHOLD: float = 0.70    # Strong signal threshold
     
     # Confidence-based position sizing multipliers
@@ -70,8 +79,8 @@ class Settings(BaseSettings):
     MAKER_FEE: float = 0.001                 # 0.1% maker fee
     TAKER_FEE: float = 0.001                 # 0.1% taker fee
     
-    # Cycle Timing
-    TRADING_CYCLE_SECONDS: int = 45          # Faster cycles for more responsiveness
+    # Cycle Timing (AGGRESSIVE MODE)
+    TRADING_CYCLE_SECONDS: int = 30          # Fast cycles for quick reaction
     DATA_FETCH_LIMIT: int = 200              # Candles to fetch
 
     class Config:

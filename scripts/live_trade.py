@@ -110,8 +110,8 @@ class OptimizedTradingBot:
         self.atr_cache: Dict[str, float] = {}  # Cache ATR for dynamic TP
         self.last_analysis: Dict[str, datetime] = {}
         
-        # Analysis cooldown (reduced for more active trading)
-        self.analysis_cooldown = timedelta(minutes=3)
+        # Analysis cooldown (AGGRESSIVE: reduced for more frequent analysis)
+        self.analysis_cooldown = timedelta(minutes=1)
         
         logger.info(f"Trading symbols: {self.symbols}")
     
@@ -198,6 +198,14 @@ class OptimizedTradingBot:
             
             # Generate signal
             signal = self.signal_generator.generate(df, symbol)
+            
+            # DEBUG: Log calculated scores for visibility
+            if signal:
+                logger.debug(
+                    f"[{symbol}] Scores -> Tech: {signal.technical_score:.2f}, "
+                    f"ML: {signal.ml_score:.2f}, Vol: {signal.volume_score:.2f} "
+                    f"= Conf: {signal.confidence:.2f} ({signal.action})"
+                )
             
             # Attach ATR to signal for dynamic TP
             if signal:
@@ -429,11 +437,15 @@ class OptimizedTradingBot:
         
         # Process results
         signals_found = 0
+        successful_symbols = 0
+        failed_symbols = []
+        
         for symbol, result in zip(self.symbols, results):
             if isinstance(result, Exception):
-                logger.error(f"Error analyzing {symbol}: {result}")
+                failed_symbols.append(symbol)
                 continue
             
+            successful_symbols += 1
             price, signal = result
             
             if price is None:
@@ -447,11 +459,16 @@ class OptimizedTradingBot:
                 signals_found += 1
                 await self.execute_signal(symbol, signal, price)
         
+        # Diagnostic log for failed symbols
+        if failed_symbols:
+            logger.warning(f"Failed to analyze {len(failed_symbols)} symbols: {failed_symbols[:5]}{'...' if len(failed_symbols) > 5 else ''}")
+        
         # Summary log
         logger.info(
             f"[BALANCE] Total: ${self.total_balance:,.2f} | "
             f"Free: ${self.free_balance:,.2f} | "
             f"Positions: {len(self.open_positions)}/{self.risk_manager.config.max_open_positions} | "
+            f"Analyzed: {successful_symbols}/{len(self.symbols)} | "
             f"Signals: {signals_found} | Daily Trades: {risk_summary['daily_trades']}"
         )
         
@@ -474,8 +491,8 @@ class OptimizedTradingBot:
         print(f"      SYMBOLS: {len(self.symbols)} | INITIAL BALANCE: ${self.total_balance:,.2f}")
         print("="*70 + "\n")
         
-        # Trading loop
-        cycle_interval = 60  # 60 seconds between cycles (swing trading)
+        # Trading loop (AGGRESSIVE: faster cycles)
+        cycle_interval = 45  # 45 seconds between cycles for faster reaction
         iteration = 0
         
         try:

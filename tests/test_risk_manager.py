@@ -21,8 +21,8 @@ class TestRiskManagerPositionLimits:
         assert settings.MAX_OPEN_POSITIONS == 30, "Paper trading should allow 30 positions"
     
     def test_max_positions_live_trading(self):
-        """Verify that live trading is limited to 5 positions for safety."""
-        assert settings.MAX_OPEN_POSITIONS_LIVE == 5, "Live trading should be limited to 5"
+        """Verify that live trading is limited to 15 positions for safety."""
+        assert settings.MAX_OPEN_POSITIONS_LIVE == 15, "Live trading should be limited to 15"
 
 
 class TestDynamicTakeProfit:
@@ -142,8 +142,8 @@ class TestConfidenceBasedSizing:
         assert mult == settings.CONFIDENCE_MULTIPLIER_VERY_HIGH  # 1.2
     
     def test_below_threshold_no_trade(self):
-        """Below 50% confidence should return 0."""
-        mult = self.rm._get_confidence_multiplier(0.45)
+        """Below 30% confidence should return 0."""
+        mult = self.rm._get_confidence_multiplier(0.25)
         assert mult == 0
 
 

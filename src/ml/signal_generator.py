@@ -26,7 +26,7 @@ class MLSignal:
     @property
     def is_actionable(self) -> bool:
         """Check if signal is strong enough to act on."""
-        return self.action != "HOLD" and self.confidence >= 0.50
+        return self.action != "HOLD" and self.confidence >= 0.10  # Ultra-aggressive
 
 
 class SignalGenerator:
@@ -43,10 +43,10 @@ class SignalGenerator:
         'volume_momentum': 0.20,
     }
     
-    # Thresholds - lowered for more trading opportunities
-    MIN_CONFIDENCE = 0.50
-    STRONG_SIGNAL_THRESHOLD = 0.70
-    ACTION_THRESHOLD = 0.30  # Lowered from 0.35
+    # Thresholds - ULTRA AGGRESSIVE MODE for maximum trade frequency
+    MIN_CONFIDENCE = 0.10  # Ultra-low for more signals
+    STRONG_SIGNAL_THRESHOLD = 0.50  # Lower for more strong signals
+    ACTION_THRESHOLD = 0.10  # Ultra-aggressive threshold
     
     def __init__(self, model_path: Optional[str] = None):
         """
@@ -117,10 +117,10 @@ class SignalGenerator:
         # Determine action and confidence
         confidence = abs(normalized_score)
         
-        # Use lower threshold for more trades (0.30 vs 0.35)
-        if normalized_score >= self.ACTION_THRESHOLD and confidence >= self.MIN_CONFIDENCE:
+        # AGGRESSIVE: Only check threshold, confidence is informational
+        if normalized_score >= self.ACTION_THRESHOLD:
             action = "BUY"
-        elif normalized_score <= -self.ACTION_THRESHOLD and confidence >= self.MIN_CONFIDENCE:
+        elif normalized_score <= -self.ACTION_THRESHOLD:
             action = "SELL"
         else:
             action = "HOLD"
@@ -154,16 +154,16 @@ class SignalGenerator:
         rsi = latest.get('RSI_14', 50)
         if not pd.isna(rsi):
             if rsi <= 25:
-                score += 0.8
+                score += 0.9
                 reasons.append(f"RSI deeply oversold ({rsi:.0f})")
-            elif rsi <= 35:
-                score += 0.4
+            elif rsi <= 40:  # Widened from 35
+                score += 0.5
                 reasons.append(f"RSI oversold ({rsi:.0f})")
             elif rsi >= 75:
-                score -= 0.8
+                score -= 0.9
                 reasons.append(f"RSI deeply overbought ({rsi:.0f})")
-            elif rsi >= 65:
-                score -= 0.4
+            elif rsi >= 60:  # Widened from 65
+                score -= 0.5
                 reasons.append(f"RSI overbought ({rsi:.0f})")
         
         # --- MACD Analysis ---
@@ -263,7 +263,7 @@ class SignalGenerator:
     def _heuristic_ml_score(self, df: pd.DataFrame) -> Tuple[float, str]:
         """
         Heuristic ML-like score based on pattern recognition.
-        Used as fallback when ML model is not available.
+        AGGRESSIVE MODE: Lower thresholds for more signals.
         """
         if len(df) < 10:
             return 0, ""
@@ -275,24 +275,38 @@ class SignalGenerator:
         avg_return = returns.mean()
         return_std = returns.std()
         
-        # Trend following with mean reversion at extremes
-        if avg_return > 0.005:  # Strong up trend
-            score = 0.5
+        # AGGRESSIVE: Much lower thresholds for trend detection
+        if avg_return > 0.002:  # Lowered from 0.005
+            score = 0.6  # Increased from 0.5
             reason = "Bullish momentum pattern"
-        elif avg_return < -0.005:  # Strong down trend
-            score = -0.5
+        elif avg_return < -0.002:  # Lowered from -0.005
+            score = -0.6  # Increased from -0.5
             reason = "Bearish momentum pattern"
-        elif avg_return < -0.002 and return_std < 0.01:
-            # Oversold with low volatility - potential bounce
-            score = 0.3
+        elif avg_return < -0.001 and return_std < 0.015:
+            # Micro-dip with low volatility - potential bounce
+            score = 0.4
             reason = "Potential reversal pattern"
-        elif avg_return > 0.002 and return_std < 0.01:
-            # Overbought with low volatility - potential drop
-            score = -0.3
+        elif avg_return > 0.001 and return_std < 0.015:
+            # Micro-rally with low volatility - potential drop
+            score = -0.4
             reason = "Potential reversal pattern"
         else:
-            score = 0
-            reason = ""
+            # AGGRESSIVE: Even neutral market gets a small bias
+            # based on last 3 candles direction
+            recent_3 = df['close'].tail(3).pct_change().dropna()
+            if len(recent_3) >= 2:
+                if all(r > 0 for r in recent_3):
+                    score = 0.3
+                    reason = "Short-term bullish"
+                elif all(r < 0 for r in recent_3):
+                    score = -0.3
+                    reason = "Short-term bearish"
+                else:
+                    score = 0
+                    reason = ""
+            else:
+                score = 0
+                reason = ""
         
         return score, reason
     

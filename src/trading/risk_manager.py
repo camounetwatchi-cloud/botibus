@@ -32,10 +32,10 @@ class RiskConfig:
     dynamic_tp_normal: float = settings.DYNAMIC_TP_NORMAL
     dynamic_tp_high_vol: float = settings.DYNAMIC_TP_HIGH_VOL
     
-    # Trade frequency limits
+    # Trade frequency limits (AGGRESSIVE MODE)
     max_daily_trades: int = settings.MAX_DAILY_TRADES
-    max_trades_per_symbol: int = 3            # Max 3 open trades per symbol
-    cooldown_minutes: int = settings.COOLDOWN_MINUTES
+    max_trades_per_symbol: int = 5            # Increased: more trades per symbol
+    cooldown_minutes: int = 5                 # Reduced: faster re-entry
     
     # Portfolio limits
     max_open_positions: int = settings.MAX_OPEN_POSITIONS
