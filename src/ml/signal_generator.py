@@ -44,9 +44,9 @@ class SignalGenerator:
     }
     
     # Thresholds - ULTRA AGGRESSIVE MODE for maximum trade frequency
-    MIN_CONFIDENCE = 0.10  # Ultra-low for more signals
+    MIN_CONFIDENCE = 0.05  # Ultra-low for more signals
     STRONG_SIGNAL_THRESHOLD = 0.50  # Lower for more strong signals
-    ACTION_THRESHOLD = 0.10  # Ultra-aggressive threshold
+    ACTION_THRESHOLD = 0.05  # Ultra-aggressive threshold
     
     def __init__(self, model_path: Optional[str] = None):
         """

@@ -1,24 +1,29 @@
-# 🤖 Bot de Trading Crypto - Swing Trading avec Auto-Apprentissage ML
+# 🤖 Bot de Trading Crypto - Plan de Développement
 
-> **Objectif** : Bot de trading gratuit, efficace, auto-apprenant, pour du swing trading (positions de quelques heures à quelques jours).
-
----
-
-## 📋 Résumé Exécutif
-
-| Critère | Décision |
-|---------|----------|
-| **Type de trading** | Swing Trading (1h - 7 jours) |
-| **Coût** | 100% Gratuit (infrastructure locale) |
-| **Langage principal** | Python (simplicité + écosystème ML) |
-| **ML Framework** | PyTorch + Stable-Baselines3 |
-| **Auto-apprentissage** | Oui - ré-entraînement continu |
-| **Hardware** | PC local avec 2 GPUs |
-| **Exchanges** | Binance, Bybit (via CCXT) |
+> **Objectif** : Bot de trading automatisé, efficace, auto-apprenant, pour du swing trading agressif.
+> 
+> **Dernière mise à jour** : 2026-01-06 | **Version** : 3.1
+> **Dernier Audit Technique** : 2026-01-06 ✅
 
 ---
 
-## 🏗️ Architecture Globale
+## 📊 État Actuel du Projet
+
+| Composant | Statut | Notes |
+|-----------|--------|-------|
+| **Infrastructure de base** | ✅ Complet | Structure projet, config, dépendances |
+| **Trading Engine** | ✅ Opérationnel | `OptimizedTradingBot` en production |
+| **Dashboard Monitoring** | ✅ Opérationnel | Streamlit avec 4 pages |
+| **Stockage Données** | ✅ Opérationnel | PostgreSQL (Supabase) + DuckDB fallback |
+| **GitHub Actions** | ✅ Opérationnel | Exécution toutes les 15 minutes |
+| **Gestion des Risques** | ✅ Opérationnel | Stop-loss, take-profit, trailing stop |
+| **Signaux ML** | ⚠️ Partiellement | Heuristiques actives, ML réel à implémenter |
+| **Backtesting** | ❌ Non implémenté | VectorBT prévu |
+| **Auto-apprentissage** | ❌ Non implémenté | Ré-entraînement automatique prévu |
+
+---
+
+## 🏗️ Architecture Actuelle
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -26,27 +31,28 @@
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│  │ DATA         │───▶│ FEATURE      │───▶│ ML ENGINE    │              │
-│  │ COLLECTOR    │    │ ENGINEERING  │    │ (Training)   │              │
+│  │ DATA         │───▶│ FEATURE      │───▶│ SIGNAL       │              │
+│  │ COLLECTOR    │    │ ENGINEERING  │    │ GENERATOR    │              │
 │  │              │    │              │    │              │              │
-│  │ • CCXT       │    │ • TA-Lib     │    │ • PyTorch    │              │
-│  │ • WebSocket  │    │ • Polars     │    │ • RL (PPO)   │              │
-│  │ • DuckDB     │    │ • Custom     │    │ • XGBoost    │              │
+│  │ • CCXT       │    │ • pandas-ta  │    │ • Heuristic  │              │
+│  │ • Kraken API │    │ • Technical  │    │ • XGBoost    │              │
+│  │              │    │   Indicators │    │   (future)   │              │
 │  └──────────────┘    └──────────────┘    └──────────────┘              │
 │         │                   │                   │                       │
 │         ▼                   ▼                   ▼                       │
 │  ┌──────────────────────────────────────────────────────┐              │
 │  │                    DATA STORAGE                       │              │
-│  │  DuckDB (OHLCV) + Parquet (Historical) + Redis (Hot) │              │
+│  │  PostgreSQL (Supabase) + DuckDB (fallback local)     │              │
 │  └──────────────────────────────────────────────────────┘              │
 │         │                                                               │
 │         ▼                                                               │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│  │ BACKTESTER   │───▶│ PAPER        │───▶│ LIVE         │              │
-│  │              │    │ TRADING      │    │ TRADING      │              │
-│  │ • VectorBT   │    │              │    │              │              │
-│  │ • Walk-fwd   │    │ • Simulation │    │ • CCXT       │              │
-│  │ • Metrics    │    │ • Real data  │    │ • Risk Mgmt  │              │
+│  │ RISK         │───▶│ TRADE        │───▶│ GITHUB       │              │
+│  │ MANAGER      │    │ EXECUTOR     │    │ ACTIONS      │              │
+│  │              │    │              │    │              │              │
+│  │ • Position   │    │ • Paper Mode │    │ • Cron 15min │              │
+│  │   Sizing     │    │ • Live Mode  │    │ • 24/7       │              │
+│  │ • SL/TP      │    │ • Kraken     │    │ • Auto-deploy│              │
 │  └──────────────┘    └──────────────┘    └──────────────┘              │
 │         │                   │                   │                       │
 │         └───────────────────┴───────────────────┘                       │
@@ -54,7 +60,8 @@
 │                             ▼                                           │
 │  ┌──────────────────────────────────────────────────────┐              │
 │  │                    MONITORING                         │              │
-│  │  Telegram Bot + Streamlit Dashboard + Logs (Rich)    │              │
+│  │           Streamlit Dashboard (4 pages)               │              │
+│  │  • Dashboard • Trade History • Analytics • Settings   │              │
 │  └──────────────────────────────────────────────────────┘              │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -62,995 +69,380 @@
 
 ---
 
-## 📦 Stack Technique Détaillé
-
-### 1. Langage et Environnement
-
-```yaml
-Runtime:
-  python: "3.11+"  # Performances optimales
-  package_manager: "uv"  # Beaucoup plus rapide que pip
-  virtual_env: "venv"
-
-IDE:
-  recommended: "VSCode ou PyCharm"
-  extensions:
-    - Python
-    - Jupyter
-    - GitLens
-```
-
-### 2. Dépendances Python
-
-```txt
-# requirements.txt
-
-# === Data Collection ===
-ccxt>=4.0.0                # API exchanges unifié
-websocket-client>=1.6.0    # WebSocket connections
-aiohttp>=3.9.0             # Async HTTP
-
-# === Data Storage ===
-duckdb>=0.9.0              # Base de données analytique ultra-rapide
-polars>=0.20.0             # DataFrames 10-100x plus rapide que Pandas
-pyarrow>=14.0.0            # Format Parquet
-redis>=5.0.0               # Cache en mémoire (optionnel)
-
-# === Feature Engineering ===
-ta-lib>=0.4.28             # Indicateurs techniques (nécessite install système)
-pandas-ta>=0.3.14b         # Alternative pure Python à TA-Lib
-numpy>=1.26.0
-numba>=0.58.0              # JIT compilation pour vitesse
-
-# === Machine Learning ===
-torch>=2.1.0               # Deep Learning (GPU)
-stable-baselines3>=2.2.0   # Reinforcement Learning
-gymnasium>=0.29.0          # Environnements RL
-xgboost>=2.0.0             # Gradient Boosting
-lightgbm>=4.1.0            # Alternative à XGBoost
-optuna>=3.4.0              # Hyperparameter tuning
-ray[tune]>=2.8.0           # Distributed training
-
-# === Backtesting ===
-vectorbt>=0.26.0           # Backtesting vectorisé ultra-rapide
-
-# === Monitoring ===
-python-telegram-bot>=20.0  # Alertes Telegram
-streamlit>=1.29.0          # Dashboard web local
-rich>=13.0.0               # Logs colorés terminal
-loguru>=0.7.0              # Logging amélioré
-
-# === Utils ===
-pydantic>=2.5.0            # Validation de données
-python-dotenv>=1.0.0       # Variables d'environnement
-schedule>=1.2.0            # Scheduling de tâches
-typer>=0.9.0               # CLI
-```
-
-### 3. Structure du Projet
+## 📁 Structure du Projet (Implémentée)
 
 ```
 tradingllm/
-├── config/
-│   ├── settings.py          # Configuration globale
-│   ├── exchanges.yaml       # Config exchanges
-│   └── strategies.yaml      # Config stratégies
-│
-├── src/
-│   ├── __init__.py
-│   │
-│   ├── data/
-│   │   ├── __init__.py
-│   │   ├── collector.py     # Collecte données OHLCV
-│   │   ├── websocket.py     # Stream temps réel
-│   │   ├── storage.py       # DuckDB + Parquet
-│   │   └── symbols.py       # Gestion des paires
-│   │
-│   ├── features/
-│   │   ├── __init__.py
-│   │   ├── technical.py     # Indicateurs TA
-│   │   ├── orderbook.py     # Features orderbook
-│   │   ├── sentiment.py     # Sentiment (optionnel)
-│   │   └── pipeline.py      # Feature pipeline
-│   │
-│   ├── ml/
-│   │   ├── __init__.py
-│   │   ├── environment.py   # Gym environment pour RL
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── rl_agent.py  # PPO/SAC agents
-│   │   │   ├── ensemble.py  # Ensemble de modèles
-│   │   │   └── xgb_model.py # XGBoost baseline
-│   │   ├── trainer.py       # Training loop
-│   │   ├── evaluator.py     # Evaluation metrics
-│   │   └── self_trainer.py  # Auto-apprentissage continu
-│   │
-│   ├── backtest/
-│   │   ├── __init__.py
-│   │   ├── engine.py        # VectorBT wrapper
-│   │   ├── metrics.py       # Sharpe, Sortino, etc.
-│   │   └── validation.py    # Walk-forward
-│   │
-│   ├── trading/
-│   │   ├── __init__.py
-│   │   ├── executor.py      # Execution des ordres
-│   │   ├── paper.py         # Paper trading
-│   │   ├── live.py          # Live trading
-│   │   └── risk.py          # Risk management
-│   │
-│   ├── monitoring/
-│   │   ├── __init__.py
-│   │   ├── telegram_bot.py  # Alertes Telegram
-│   │   ├── dashboard.py     # Streamlit app
-│   │   └── logger.py        # Logging config
-│   │
-│   └── utils/
-│       ├── __init__.py
-│       ├── time_utils.py
-│       └── math_utils.py
-│
-├── models/                   # Modèles sauvegardés
-│   ├── checkpoints/
-│   └── production/
-│
-├── data/                     # Données locales
-│   ├── raw/                  # OHLCV brut
-│   ├── processed/            # Features calculées
-│   └── duckdb/               # Base DuckDB
-│
-├── notebooks/                # Jupyter pour recherche
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_feature_analysis.ipynb
-│   └── 03_model_experiments.ipynb
-│
-├── tests/
-│   ├── test_data/
-│   ├── test_features/
-│   ├── test_ml/
-│   └── test_trading/
+├── .github/
+│   └── workflows/
+│       └── trading_bot.yml      ✅ Workflow GitHub Actions
 │
 ├── scripts/
-│   ├── collect_data.py      # Script collecte
-│   ├── train_model.py       # Script training
-│   ├── run_backtest.py      # Script backtest
-│   ├── paper_trade.py       # Script paper trading
-│   └── live_trade.py        # Script live trading
+│   ├── live_trade.py            ✅ Bot principal (OptimizedTradingBot)
+│   ├── gh_actions_trade.py      ✅ Script pour GitHub Actions
+│   ├── check_positions.py       ✅ Diagnostic des positions
+│   ├── check_status.py          ✅ Vérification statut bot
+│   ├── full_diagnostic.py       ✅ Diagnostic complet
+│   ├── get_top_cryptos.py       ✅ Récupération top cryptos
+│   ├── reset_session.py         ✅ Reset session trading
+│   └── verify_kraken.py         ✅ Test API Kraken
 │
-├── .env.example              # Template variables
-├── .gitignore
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+├── src/
+│   ├── config/
+│   │   └── settings.py          ✅ Configuration centralisée
+│   │
+│   ├── data/
+│   │   ├── collector.py         ✅ Collecte données CCXT
+│   │   └── storage.py           ✅ PostgreSQL + DuckDB
+│   │
+│   ├── features/
+│   │   └── technical.py         ✅ Indicateurs techniques (pandas-ta)
+│   │
+│   ├── ml/
+│   │   └── signal_generator.py  ✅ Génération signaux (heuristique)
+│   │
+│   ├── trading/
+│   │   ├── executor.py          ✅ Exécution ordres CCXT
+│   │   └── risk_manager.py      ✅ Gestion risques complète
+│   │
+│   ├── monitoring/
+│   │   ├── dashboard.py         ✅ Dashboard Streamlit
+│   │   └── dashboard.css        ✅ Styling personnalisé
+│   │
+│   └── strategies/              ⚠️ Prévu mais non utilisé
+│
+├── tests/
+│   ├── test_risk_manager.py     ✅ Tests Risk Manager
+│   ├── verify_dashboard_logic.py ✅ Tests Dashboard
+│   └── debug_storage_repro.py   ✅ Debug Storage
+│
+├── data/                         ✅ Stockage local DuckDB
+├── logs/                         ✅ Logs rotatifs
+│
+├── start_trading_app.bat        ✅ Lanceur Windows
+├── start_trading_app.ps1        ✅ Lanceur PowerShell
+├── requirements.txt             ✅ Dépendances Python
+├── pyproject.toml               ✅ Config projet
+├── .env.example                 ✅ Template variables env
+├── README.md                    ✅ Documentation utilisateur
+├── GUIDE_UTILISATEUR.md         ✅ Guide complet
+├── TROUBLESHOOTING.md           ✅ Guide dépannage
+└── VERIFICATION_CHECKLIST.md    ✅ Checklist vérification
 ```
 
 ---
 
-## 📊 Module 1 : Collecte des Données
+## ⚙️ Configuration Actuelle
 
-### 1.1 Sources de Données (Gratuites)
+### Paramètres de Trading (settings.py)
 
-| Source | Type | Limite Gratuite |
-|--------|------|-----------------|
-| **Binance API** | OHLCV, Orderbook | 1200 req/min |
-| **Bybit API** | OHLCV, Orderbook | 600 req/min |
-| **CoinGecko** | Market cap, volume | 30 req/min |
-| **Fear & Greed Index** | Sentiment | Illimité |
-| **Reddit API** | Sentiment | 60 req/min |
+| Paramètre | Valeur | Description |
+|-----------|--------|-------------|
+| `MAX_POSITION_PERCENT` | 10% | Max par position |
+| `MIN_TRADE_VALUE` | 10€ | Minimum par trade |
+| `RISK_PER_TRADE` | 1.5% | Risque par trade |
+| `DEFAULT_STOP_LOSS` | 2.5% | Stop-loss par défaut |
+| `DEFAULT_TAKE_PROFIT` | 4.5% | Take-profit de base |
+| `MAX_OPEN_POSITIONS` | 30 | Positions simultanées (paper) |
+| `MAX_OPEN_POSITIONS_LIVE` | 15 | Positions simultanées (live) |
+| `COOLDOWN_MINUTES` | 1 min | Délai entre trades même symbole |
+| `TRAILING_STOP_ACTIVATION` | +2% | Activation trailing stop |
+| `TRAILING_STOP_DISTANCE` | 1% | Distance trailing stop |
+| `MIN_SIGNAL_CONFIDENCE` | 20% | Seuil signal minimum |
+| `TRADING_CYCLE_SECONDS` | 15s | Fréquence analyse |
 
-### 1.2 Données à Collecter
+### Cryptomonnaies Monitorées (Kraken EUR)
 
 ```python
-# Timeframes pour Swing Trading
-TIMEFRAMES = ["15m", "1h", "4h", "1d"]
-
-# Paires principales (haute liquidité)
 SYMBOLS = [
-    "BTC/USDT",
-    "ETH/USDT", 
-    "SOL/USDT",
-    "BNB/USDT",
-    "XRP/USDT",
-    "ADA/USDT",
-    "AVAX/USDT",
-    "DOGE/USDT",
-    "LINK/USDT",
-    "DOT/USDT",
-]
-
-# Données OHLCV
-OHLCV_COLUMNS = [
-    "timestamp",
-    "open", 
-    "high", 
-    "low", 
-    "close", 
-    "volume",
-    "quote_volume",
-    "trades_count",
-]
-
-# Données Orderbook (snapshot)
-ORDERBOOK_DEPTH = 20  # Top 20 bids/asks
-```
-
-### 1.3 Schéma DuckDB
-
-```sql
--- Table principale OHLCV
-CREATE TABLE ohlcv (
-    id INTEGER PRIMARY KEY,
-    symbol VARCHAR NOT NULL,
-    exchange VARCHAR NOT NULL,
-    timeframe VARCHAR NOT NULL,
-    timestamp TIMESTAMP NOT NULL,
-    open DOUBLE NOT NULL,
-    high DOUBLE NOT NULL,
-    low DOUBLE NOT NULL,
-    close DOUBLE NOT NULL,
-    volume DOUBLE NOT NULL,
-    quote_volume DOUBLE,
-    trades_count INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    UNIQUE(symbol, exchange, timeframe, timestamp)
-);
-
--- Index pour requêtes rapides
-CREATE INDEX idx_ohlcv_symbol_time ON ohlcv(symbol, timestamp);
-CREATE INDEX idx_ohlcv_timeframe ON ohlcv(timeframe, timestamp);
-
--- Table features calculées
-CREATE TABLE features (
-    id INTEGER PRIMARY KEY,
-    ohlcv_id INTEGER REFERENCES ohlcv(id),
-    -- Indicateurs techniques
-    sma_20 DOUBLE,
-    sma_50 DOUBLE,
-    sma_200 DOUBLE,
-    ema_12 DOUBLE,
-    ema_26 DOUBLE,
-    rsi_14 DOUBLE,
-    macd DOUBLE,
-    macd_signal DOUBLE,
-    macd_hist DOUBLE,
-    bb_upper DOUBLE,
-    bb_middle DOUBLE,
-    bb_lower DOUBLE,
-    atr_14 DOUBLE,
-    adx_14 DOUBLE,
-    obv DOUBLE,
-    -- Features custom
-    price_momentum DOUBLE,
-    volume_momentum DOUBLE,
-    volatility DOUBLE,
-    trend_strength DOUBLE,
-    support_distance DOUBLE,
-    resistance_distance DOUBLE
-);
-
--- Table trades exécutés
-CREATE TABLE trades (
-    id INTEGER PRIMARY KEY,
-    symbol VARCHAR NOT NULL,
-    side VARCHAR NOT NULL,  -- 'buy' or 'sell'
-    entry_price DOUBLE NOT NULL,
-    exit_price DOUBLE,
-    quantity DOUBLE NOT NULL,
-    entry_time TIMESTAMP NOT NULL,
-    exit_time TIMESTAMP,
-    pnl DOUBLE,
-    pnl_percent DOUBLE,
-    fees DOUBLE,
-    status VARCHAR DEFAULT 'open',  -- 'open', 'closed', 'cancelled'
-    strategy VARCHAR,
-    model_version VARCHAR,
-    is_paper BOOLEAN DEFAULT TRUE
-);
-
--- Table performance modèles
-CREATE TABLE model_performance (
-    id INTEGER PRIMARY KEY,
-    model_version VARCHAR NOT NULL,
-    trained_at TIMESTAMP NOT NULL,
-    backtest_sharpe DOUBLE,
-    backtest_sortino DOUBLE,
-    backtest_max_drawdown DOUBLE,
-    backtest_win_rate DOUBLE,
-    paper_sharpe DOUBLE,
-    paper_pnl DOUBLE,
-    live_sharpe DOUBLE,
-    live_pnl DOUBLE,
-    status VARCHAR DEFAULT 'testing'  -- 'testing', 'production', 'retired'
-);
-```
-
----
-
-## 🔧 Module 2 : Feature Engineering
-
-### 2.1 Indicateurs Techniques
-
-```python
-# Catégories de features
-FEATURES = {
-    # Trend Indicators
-    "trend": [
-        "sma_20", "sma_50", "sma_200",
-        "ema_12", "ema_26", "ema_50",
-        "macd", "macd_signal", "macd_hist",
-        "adx", "plus_di", "minus_di",
-        "aroon_up", "aroon_down",
-        "supertrend",
-    ],
-    
-    # Momentum Indicators
-    "momentum": [
-        "rsi_14", "rsi_7",
-        "stoch_k", "stoch_d",
-        "williams_r",
-        "cci_20",
-        "mfi_14",
-        "roc_10",
-    ],
-    
-    # Volatility Indicators
-    "volatility": [
-        "bb_upper", "bb_middle", "bb_lower",
-        "bb_width", "bb_percent",
-        "atr_14", "atr_7",
-        "keltner_upper", "keltner_lower",
-        "donchian_upper", "donchian_lower",
-    ],
-    
-    # Volume Indicators
-    "volume": [
-        "obv",
-        "vwap",
-        "volume_sma_20",
-        "volume_ratio",
-        "accumulation_distribution",
-    ],
-    
-    # Price Action Features
-    "price_action": [
-        "candle_body_size",
-        "candle_wick_ratio",
-        "higher_high", "lower_low",
-        "pivot_points",
-        "support_levels",
-        "resistance_levels",
-    ],
-    
-    # Multi-timeframe Features
-    "mtf": [
-        "trend_1h", "trend_4h", "trend_1d",
-        "rsi_1h", "rsi_4h", "rsi_1d",
-        "volume_ratio_1h", "volume_ratio_4h",
-    ],
-    
-    # Market Structure
-    "market": [
-        "btc_correlation",
-        "btc_dominance",
-        "total_market_cap_change",
-        "fear_greed_index",
-    ],
-}
-```
-
-### 2.2 Feature Pipeline
-
-```python
-# Pipeline de transformation
-FEATURE_PIPELINE = [
-    # 1. Calcul indicateurs bruts
-    ("technical_indicators", TechnicalIndicatorTransformer()),
-    
-    # 2. Normalisation
-    ("normalize", RobustScaler()),  # Résistant aux outliers
-    
-    # 3. Lag features (éviter data leakage!)
-    ("lag_features", LagTransformer(lags=[1, 2, 3, 5, 10])),
-    
-    # 4. Rolling statistics
-    ("rolling_stats", RollingStatsTransformer(windows=[5, 10, 20])),
-    
-    # 5. Target encoding (pour catégories)
-    ("target_encode", TargetEncoder()),
-    
-    # 6. Feature selection
-    ("select_features", FeatureSelector(method="mutual_info", k=50)),
-]
-```
-
-### 2.3 Prévention Data Leakage ⚠️
-
-```python
-# RÈGLES CRITIQUES pour éviter le data leakage
-
-# ❌ INTERDIT : Utiliser des données futures
-# ❌ INTERDIT : Normaliser sur tout le dataset
-# ❌ INTERDIT : Feature selection sur tout le dataset
-
-# ✅ CORRECT : Pipeline pour chaque fold
-class SafeFeaturePipeline:
-    def fit_transform(self, X_train, y_train):
-        """Fit uniquement sur train, jamais sur test/validation"""
-        self.scaler.fit(X_train)
-        self.selector.fit(X_train, y_train)
-        return self.transform(X_train)
-    
-    def transform(self, X):
-        """Transform sans refit - pour validation/test"""
-        return self.selector.transform(
-            self.scaler.transform(X)
-        )
-```
-
----
-
-## 🧠 Module 3 : Machine Learning
-
-### 3.1 Approche Multi-Modèles
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    ENSEMBLE STRATEGY                     │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│   │   XGBoost   │  │   LightGBM  │  │  RL Agent   │    │
-│   │  (Baseline) │  │  (Fast)     │  │  (PPO/SAC)  │    │
-│   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
-│          │                │                │            │
-│          └────────────────┼────────────────┘            │
-│                           ▼                             │
-│                  ┌─────────────┐                        │
-│                  │ META-LEARNER│                        │
-│                  │ (Weighted   │                        │
-│                  │  Ensemble)  │                        │
-│                  └──────┬──────┘                        │
-│                         │                               │
-│                         ▼                               │
-│                  ┌─────────────┐                        │
-│                  │   SIGNAL    │                        │
-│                  │  BUY/SELL/  │                        │
-│                  │    HOLD     │                        │
-│                  └─────────────┘                        │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 3.2 Modèle 1 : XGBoost Baseline
-
-```python
-# Configuration XGBoost pour classification
-XGBOOST_CONFIG = {
-    "objective": "multi:softprob",
-    "num_class": 3,  # Buy, Sell, Hold
-    "eval_metric": "mlogloss",
-    
-    # Hyperparamètres
-    "max_depth": 6,
-    "learning_rate": 0.05,
-    "n_estimators": 500,
-    "subsample": 0.8,
-    "colsample_bytree": 0.8,
-    
-    # Régularisation
-    "reg_alpha": 0.1,
-    "reg_lambda": 1.0,
-    
-    # GPU
-    "tree_method": "gpu_hist",
-    "device": "cuda",
-    
-    # Early stopping
-    "early_stopping_rounds": 50,
-}
-
-# Labels pour classification
-TARGET_LABELS = {
-    0: "HOLD",
-    1: "BUY",   # Prix monte > 2% dans les X prochaines heures
-    2: "SELL",  # Prix baisse > 2% dans les X prochaines heures
-}
-```
-
-### 3.3 Modèle 2 : Reinforcement Learning
-
-```python
-# Configuration environnement RL
-RL_ENVIRONMENT_CONFIG = {
-    # State space
-    "state_features": [
-        "normalized_price",
-        "returns_1h", "returns_4h", "returns_1d",
-        "rsi", "macd", "bb_percent",
-        "volume_ratio",
-        "position_size",  # Current position
-        "unrealized_pnl",  # Current P&L
-        "portfolio_value",
-    ],
-    
-    # Action space
-    "actions": {
-        0: ("HOLD", 0.0),
-        1: ("BUY_SMALL", 0.25),   # 25% du capital
-        2: ("BUY_MEDIUM", 0.50),  # 50% du capital
-        3: ("BUY_LARGE", 0.75),   # 75% du capital
-        4: ("SELL_SMALL", 0.25),
-        5: ("SELL_MEDIUM", 0.50),
-        6: ("SELL_ALL", 1.0),
-    },
-    
-    # Reward function
-    "reward_config": {
-        "base_reward": "pnl_percent",  # % de gain/perte
-        "risk_penalty_factor": 0.5,     # Pénalise volatilité
-        "drawdown_penalty": 2.0,        # Pénalise drawdown
-        "holding_penalty": 0.001,       # Léger coût d'inaction
-        "transaction_cost": 0.001,      # 0.1% par trade
-    },
-}
-
-# Configuration agent PPO
-PPO_CONFIG = {
-    "policy": "MlpPolicy",
-    "learning_rate": 3e-4,
-    "n_steps": 2048,
-    "batch_size": 64,
-    "n_epochs": 10,
-    "gamma": 0.99,
-    "gae_lambda": 0.95,
-    "clip_range": 0.2,
-    "ent_coef": 0.01,
-    "vf_coef": 0.5,
-    "max_grad_norm": 0.5,
-    
-    # Network architecture
-    "policy_kwargs": {
-        "net_arch": [
-            {"pi": [256, 256], "vf": [256, 256]}
-        ],
-        "activation_fn": "torch.nn.ReLU",
-    },
-    
-    # Training
-    "total_timesteps": 1_000_000,
-    "device": "cuda",
-}
-```
-
-### 3.4 Auto-Apprentissage Continu ⭐
-
-```python
-# Configuration self-training
-SELF_TRAINING_CONFIG = {
-    # Scheduling
-    "retrain_frequency": "weekly",  # Ré-entraînement hebdomadaire
-    "evaluation_frequency": "daily",  # Évaluation quotidienne
-    
-    # Data windows
-    "training_window_days": 180,  # 6 mois de données pour training
-    "validation_window_days": 30,  # 1 mois pour validation
-    "min_samples": 5000,  # Minimum de samples pour retraining
-    
-    # Performance thresholds
-    "min_sharpe_ratio": 1.0,
-    "max_drawdown": 0.15,  # 15% max drawdown
-    "min_win_rate": 0.45,
-    
-    # Model selection
-    "selection_metric": "sharpe_ratio",
-    "comparison_window_days": 7,  # Comparer sur 7 jours
-    
-    # A/B Testing
-    "ab_test_capital_split": 0.2,  # 20% capital pour nouveau modèle
-    "ab_test_min_trades": 20,
-    "ab_test_confidence": 0.95,
-    
-    # Rollback
-    "rollback_drawdown_trigger": 0.10,  # Rollback si -10%
-    "keep_n_checkpoints": 5,
-}
-
-# Pipeline auto-training
-SELF_TRAINING_PIPELINE = """
-┌─────────────────────────────────────────────────────────┐
-│             CONTINUOUS LEARNING PIPELINE                 │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  1. COLLECT NEW DATA (Daily)                            │
-│     └─ Fetch last 24h of market data                    │
-│     └─ Calculate features                               │
-│     └─ Store in DuckDB                                  │
-│                                                          │
-│  2. EVALUATE CURRENT MODEL (Daily)                      │
-│     └─ Calculate live performance metrics               │
-│     └─ Compare to benchmarks (BUY & HOLD)               │
-│     └─ Check for regime change                          │
-│                                                          │
-│  3. TRIGGER RETRAINING (If conditions met)              │
-│     └─ Performance below threshold?                     │
-│     └─ Scheduled retraining day?                        │
-│     └─ Regime change detected?                          │
-│                                                          │
-│  4. TRAIN NEW MODEL (When triggered)                    │
-│     └─ Prepare training data (rolling window)           │
-│     └─ Hyperparameter tuning (Optuna)                   │
-│     └─ Train on GPU                                     │
-│     └─ Validate with walk-forward                       │
-│                                                          │
-│  5. A/B TEST NEW MODEL (Paper trading)                  │
-│     └─ Run both models in parallel                      │
-│     └─ Compare performance over N trades                │
-│     └─ Statistical significance test                    │
-│                                                          │
-│  6. PROMOTE OR REJECT                                   │
-│     └─ If new model better: promote to production       │
-│     └─ If worse: keep current, save checkpoint          │
-│     └─ Log decision and metrics                         │
-│                                                          │
-│  7. MONITOR (Continuous)                                │
-│     └─ Track live performance                           │
-│     └─ Alert on anomalies                               │
-│     └─ Emergency rollback if needed                     │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-"""
-```
-
----
-
-## 📈 Module 4 : Backtesting
-
-### 4.1 Configuration VectorBT
-
-```python
-# Configuration backtesting
-BACKTEST_CONFIG = {
-    # Frais réalistes (CRUCIAL)
-    "fees": {
-        "maker": 0.0002,   # 0.02% avec réduction VIP
-        "taker": 0.0004,   # 0.04% avec réduction VIP
-        "slippage": 0.0005, # 0.05% slippage estimé
-    },
-    
-    # Timeframe principal
-    "timeframe": "1h",
-    
-    # Période de backtest
-    "start_date": "2023-01-01",
-    "end_date": "2024-12-31",
-    
-    # Capital initial
-    "initial_capital": 10000,  # $10,000 USDT simulé
-    
-    # Position sizing
-    "max_position_pct": 0.20,  # Max 20% par position
-    "max_positions": 5,        # Max 5 positions simultanées
-    
-    # Risk management
-    "stop_loss_pct": 0.03,     # Stop loss à 3%
-    "take_profit_pct": 0.06,   # Take profit à 6%
-    "trailing_stop_pct": 0.02, # Trailing stop 2%
-}
-
-# Métriques à calculer
-BACKTEST_METRICS = [
-    "total_return",
-    "sharpe_ratio",
-    "sortino_ratio",
-    "calmar_ratio",
-    "max_drawdown",
-    "max_drawdown_duration",
-    "win_rate",
-    "profit_factor",
-    "avg_win",
-    "avg_loss",
-    "total_trades",
-    "avg_trade_duration",
-    "exposure_time",
-]
-```
-
-### 4.2 Walk-Forward Validation
-
-```python
-# Configuration walk-forward
-WALK_FORWARD_CONFIG = {
-    "n_splits": 5,
-    "train_size_days": 120,   # 4 mois training
-    "test_size_days": 30,     # 1 mois test
-    "gap_days": 1,            # 1 jour de gap (éviter leakage)
-    
-    # Chaque split
-    # Split 1: Train [0-120] -> Test [121-150]
-    # Split 2: Train [30-150] -> Test [151-180]
-    # Split 3: Train [60-180] -> Test [181-210]
-    # ...
-}
-```
-
----
-
-## ⚠️ Module 5 : Risk Management
-
-### 5.1 Règles de Gestion du Risque
-
-```python
-RISK_MANAGEMENT = {
-    # Position Limits
-    "max_position_size_pct": 0.20,  # Max 20% du capital par trade
-    "max_portfolio_risk_pct": 0.10,  # Max 10% risque total
-    "max_correlation": 0.7,  # Éviter positions trop corrélées
-    
-    # Daily Limits
-    "max_daily_loss_pct": 0.05,  # Stop trading si -5% journalier
-    "max_daily_trades": 10,
-    "max_consecutive_losses": 5,
-    
-    # Drawdown Limits
-    "max_drawdown_pct": 0.15,  # Pause si -15% drawdown
-    "drawdown_recovery_days": 7,  # Attendre 7 jours avant reprendre
-    
-    # Volatility Adjustment
-    "high_volatility_reduction": 0.5,  # Réduire taille 50% en haute vol
-    "volatility_threshold": 2.0,  # Seuil = 2x volatilité normale
-    
-    # Exposure Limits
-    "max_long_exposure": 0.8,  # Max 80% long
-    "max_short_exposure": 0.3,  # Max 30% short (si applicable)
-    
-    # Circuit Breakers
-    "pause_on_exchange_error": True,
-    "pause_on_api_rate_limit": True,
-    "pause_on_high_spread": 0.01,  # Pause si spread > 1%
-}
-```
-
-### 5.2 Position Sizing Dynamique
-
-```python
-# Kelly Criterion modifié
-def calculate_position_size(
-    win_rate: float,
-    avg_win: float,
-    avg_loss: float,
-    current_volatility: float,
-    max_position: float = 0.20
-) -> float:
-    """
-    Position sizing basé sur Kelly Criterion avec ajustement volatilité
-    """
-    # Kelly formula
-    kelly = (win_rate * avg_win - (1 - win_rate) * avg_loss) / avg_win
-    
-    # Fractional Kelly (plus conservateur)
-    fractional_kelly = kelly * 0.25  # Utiliser 25% du Kelly
-    
-    # Ajustement volatilité
-    vol_adjustment = 1.0 / (1.0 + current_volatility)
-    
-    # Position finale
-    position = min(
-        fractional_kelly * vol_adjustment,
-        max_position
-    )
-    
-    return max(0, position)
-```
-
----
-
-## 📱 Module 6 : Monitoring
-
-### 6.1 Telegram Bot
-
-```python
-# Configuration Telegram
-TELEGRAM_CONFIG = {
-    "enabled": True,
-    "bot_token": "${TELEGRAM_BOT_TOKEN}",  # Depuis .env
-    "chat_id": "${TELEGRAM_CHAT_ID}",
-    
-    # Notifications
-    "notify_on": {
-        "trade_open": True,
-        "trade_close": True,
-        "daily_summary": True,
-        "drawdown_warning": True,  # Si drawdown > 5%
-        "error": True,
-        "model_update": True,
-    },
-    
-    # Commandes
-    "commands": [
-        "/status",     # Status du bot
-        "/balance",    # Balance actuelle
-        "/positions",  # Positions ouvertes
-        "/pnl",        # P&L du jour
-        "/stop",       # Arrêter le trading
-        "/start",      # Reprendre le trading
-    ],
-}
-```
-
-### 6.2 Dashboard Streamlit
-
-```python
-# Pages du dashboard
-DASHBOARD_PAGES = [
-    "Overview",       # Résumé général
-    "Positions",      # Positions ouvertes
-    "Trades",         # Historique trades
-    "Performance",    # Métriques performance
-    "Backtest",       # Résultats backtest
-    "Models",         # Versions modèles
-    "Logs",           # Logs en temps réel
-    "Settings",       # Configuration
+    "BTC/EUR",   # Bitcoin
+    "ETH/EUR",   # Ethereum
+    "SOL/EUR",   # Solana
+    "XRP/EUR",   # Ripple
+    "BNB/EUR",   # Binance Coin
+    "ADA/EUR",   # Cardano
+    "DOGE/EUR",  # Dogecoin
+    "AVAX/EUR",  # Avalanche
+    "LINK/EUR",  # Chainlink
+    "DOT/EUR",   # Polkadot
 ]
 ```
 
 ---
 
-## 🚀 Module 7 : Déploiement
+## 📈 Progression des Modules
 
-### 7.1 Environnement de Production (Local)
+### Module 1 : Infrastructure ✅ COMPLET
 
-```yaml
-# Configuration production locale
-production:
-  hardware:
-    cpu: "Multi-core (8+)"
-    ram: "32GB+"
-    gpu: "2x NVIDIA (training)"
-    storage: "500GB+ SSD"
-  
-  processes:
-    - name: "data_collector"
-      description: "Collecte données en continu"
-      restart: "always"
-      
-    - name: "feature_pipeline"
-      description: "Calcul features temps réel"
-      restart: "always"
-      
-    - name: "trading_engine"
-      description: "Exécution des trades"
-      restart: "always"
-      priority: "high"
-      
-    - name: "self_trainer"
-      description: "Ré-entraînement périodique"
-      schedule: "weekly"
-      gpu: true
-      
-    - name: "monitor"
-      description: "Dashboard + Telegram"
-      restart: "always"
+- [x] Structure projet Python
+- [x] Configuration centralisée (pydantic-settings)
+- [x] Gestion environnement (.env)
+- [x] Logging avec rotation (loguru)
+- [x] GitHub Actions workflow (cron 15min)
+- [x] Scripts de lancement Windows (.bat, .ps1)
 
-  # Gestion des processus
-  process_manager: "systemd"  # ou supervisord
-```
+### Module 2 : Collecte de Données ✅ COMPLET
 
-### 7.2 Variables d'Environnement
+- [x] Intégration CCXT pour Kraken
+- [x] Collecte OHLCV multi-timeframes
+- [x] Stockage PostgreSQL (Supabase cloud)
+- [x] Fallback automatique DuckDB (local)
+- [x] Gestion des cooldowns persistante
+- [x] Heartbeat status bot
 
-```bash
-# .env.example
+### Module 3 : Feature Engineering ✅ COMPLET
 
-# === Exchange API Keys ===
-BINANCE_API_KEY=your_api_key_here
-BINANCE_SECRET_KEY=your_secret_key_here
-BYBIT_API_KEY=your_api_key_here
-BYBIT_SECRET_KEY=your_secret_key_here
+- [x] Indicateurs de tendance (SMA, EMA, MACD, ADX)
+- [x] Indicateurs momentum (RSI, Stochastic, Williams %R)
+- [x] Indicateurs volatilité (Bollinger Bands, ATR, Keltner)
+- [x] Indicateurs volume (OBV, VWAP, Volume Ratio)
+- [x] Features custom (momentum, volatilité relative)
+- [ ] Features multi-timeframe (prévu, non utilisé)
 
-# === Telegram ===
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+### Module 4 : Génération de Signaux ⚠️ PARTIELLEMENT COMPLET
 
-# === Database ===
-DUCKDB_PATH=./data/duckdb/trading.db
-REDIS_URL=redis://localhost:6379
+- [x] Architecture SignalGenerator
+- [x] Score technique basé sur indicateurs
+- [x] Score heuristique ML-like (pattern recognition)
+- [x] Score volume/momentum
+- [x] Agrégation pondérée (40% tech + 40% ML + 20% vol)
+- [ ] **Modèle XGBoost réel** ❌ Non entraîné
+- [ ] **Modèle RL (PPO/SAC)** ❌ Non implémenté
+- [ ] **Ensemble de modèles** ❌ Non implémenté
 
-# === Trading ===
-TRADING_MODE=paper  # paper | live
-INITIAL_CAPITAL=10000
-MAX_POSITION_PCT=0.20
+### Module 5 : Gestion des Risques ✅ COMPLET
 
-# === ML ===
-MODEL_PATH=./models/production/latest.pt
-DEVICE=cuda
-```
+- [x] Position sizing dynamique
+- [x] Multiplicateurs selon confidence
+- [x] Stop-loss fixe et trailing
+- [x] Take-profit dynamique (basé ATR)
+- [x] Limite positions simultanées
+- [x] Limite perte journalière
+- [x] Cooldown par symbole
+- [x] Suivi drawdown
 
----
+### Module 6 : Exécution Trades ✅ COMPLET
 
-## 📅 Plan d'Implémentation
+- [x] Mode Paper Trading
+- [x] Mode Live Trading (Kraken)
+- [x] Exécution via CCXT
+- [x] Logging détaillé des trades
+- [x] Gestion fermeture positions (SL/TP/Trailing)
+- [x] Cycle trading async parallélisé
 
-### Phase 1 : Foundation (Semaine 1-2)
-- [ ] Setup environnement Python avec uv
-- [ ] Créer structure projet
-- [ ] Implémenter data collector (CCXT)
-- [ ] Setup DuckDB + schéma
+### Module 7 : Monitoring ✅ COMPLET
 
-### Phase 2 : Features (Semaine 3)
-- [ ] Implémenter indicateurs techniques
-- [ ] Créer feature pipeline
-- [ ] Tests unitaires features
+- [x] Dashboard Streamlit (4 pages)
+- [x] Métriques temps réel
+- [x] Graphiques Plotly
+- [x] Export CSV
+- [x] Filtres avancés
+- [x] Bot start/stop depuis UI
+- [x] Auto-refresh configurable
+- [ ] **Alertes Telegram** ❌ Non implémenté
 
-### Phase 3 : ML Baseline (Semaine 4-5)
-- [ ] Implémenter XGBoost baseline
-- [ ] Créer environnement RL
-- [ ] Setup training avec GPU
-- [ ] Hyperparameter tuning avec Optuna
+### Module 8 : Backtesting ❌ NON IMPLÉMENTÉ
 
-### Phase 4 : Backtesting (Semaine 6)
-- [ ] Implémenter VectorBT wrapper
+- [ ] VectorBT wrapper
 - [ ] Walk-forward validation
-- [ ] Générer rapports métriques
+- [ ] Métriques (Sharpe, Sortino, Calmar)
+- [ ] Rapports automatisés
 
-### Phase 5 : Paper Trading (Semaine 7-10)
-- [ ] Implémenter paper trading engine
-- [ ] Connecter à exchange (lecture seule)
-- [ ] 4 semaines minimum de paper trading
-- [ ] Analyser résultats et ajuster
+### Module 9 : Auto-Apprentissage ❌ NON IMPLÉMENTÉ
 
-### Phase 6 : Self-Training (Semaine 11-12)
-- [ ] Implémenter boucle d'auto-apprentissage
-- [ ] A/B testing pipeline
+- [ ] Pipeline ré-entraînement
+- [ ] Évaluation automatique performance
+- [ ] A/B testing modèles
 - [ ] Model versioning
-
-### Phase 7 : Monitoring (Semaine 13)
-- [ ] Telegram bot
-- [ ] Streamlit dashboard
-- [ ] Alerting
-
-### Phase 8 : Live Trading (Semaine 14+)
-- [ ] Tests avec micro-capital (100€)
-- [ ] Monitoring intensif
-- [ ] Scale-up progressif
+- [ ] Rollback automatique
 
 ---
 
-## ⚠️ Avertissements Importants
+## 🎯 Axes d'Amélioration Prioritaires
+
+### 🔴 Priorité Haute
+
+#### 1. Implémentation ML Réel
+**État** : Le bot utilise actuellement des heuristiques pour simuler le ML.
+
+**Actions requises** :
+- [ ] Collecter historique trades pour dataset
+- [ ] Entraîner XGBoost avec features techniques
+- [ ] Implémenter évaluation walk-forward
+- [ ] Comparer performance heuristique vs ML
+- [ ] Déployer modèle si meilleur
+
+**Fichiers concernés** :
+- `src/ml/signal_generator.py` - Intégrer vrai modèle
+- `src/ml/models/xgb_model.py` - À créer
+- `scripts/train_model.py` - À créer
+
+#### 2. Backtesting Framework
+**État** : Aucun backtesting disponible.
+
+**Actions requises** :
+- [ ] Installer et configurer VectorBT
+- [ ] Créer wrapper pour stratégie actuelle
+- [ ] Implémenter walk-forward validation
+- [ ] Générer rapports métriques
+- [ ] Valider avant passage live
+
+**Fichiers concernés** :
+- `src/backtest/engine.py` - À créer
+- `src/backtest/metrics.py` - À créer
+- `scripts/run_backtest.py` - À créer
+
+#### 3. Alertes Telegram
+**État** : Configuration prévue mais non implémentée.
+
+**Actions requises** :
+- [ ] Créer bot Telegram
+- [ ] Implémenter envoi alertes
+- [ ] Notifications pour: trades, daily summary, erreurs
+- [ ] Commandes: /status, /balance, /positions
+
+**Fichiers concernés** :
+- `src/monitoring/telegram_bot.py` - À créer
+
+### 🟡 Priorité Moyenne
+
+#### 4. Optimisation Performance Bot
+**État** : Améliorations appliquées le 2026-01-06.
+
+**Actions réalisées** :
+- [x] Retry avec backoff exponentiel (collector.py)
+- [x] Cache TA-Lib sur GitHub Actions
+- [x] Timeout explicite workflow (10 min)
+- [ ] Cache mémoire pour indicateurs
+- [ ] Monitoring temps d'exécution
+
+#### 5. Analyse Post-Trade
+**État** : Données collectées mais non analysées.
+
+**Actions possibles** :
+- [ ] Analyse win/loss par heure, jour, symbole
+- [ ] Identification patterns gagnants
+- [ ] Détection drift performance
+- [ ] Recommandations automatiques
+
+#### 6. Multi-Exchange Support
+**État** : Kraken uniquement.
+
+**Actions possibles** :
+- [ ] Ajouter Binance
+- [ ] Ajouter Bybit
+- [ ] Arbitrage cross-exchange
+
+### 🟢 Priorité Basse
+
+#### 7. Interface Mobile
+- [ ] Version responsive dashboard
+- [ ] App mobile (React Native)
+
+#### 8. Stratégies Multiples
+- [ ] Framework stratégie pluggable
+- [ ] Stratégie mean-reversion
+- [ ] Stratégie breakout
+
+---
+
+## 📋 Prochaines Étapes Recommandées
+
+### Court Terme (1-2 semaines)
+1. **Collecter plus de données de trades** pour analyse
+2. **Implémenter alertes Telegram** pour monitoring à distance
+3. **Ajouter métriques dashboard** : temps en position, ratio gain/perte
+
+### Moyen Terme (3-4 semaines)
+1. **Implémenter backtesting VectorBT**
+2. **Entraîner premier modèle XGBoost**
+3. **Comparer ML vs heuristiques en paper trading**
+
+### Long Terme (2+ mois)
+1. **Auto-apprentissage continu**
+2. **Multi-exchange**
+3. **Stratégies additionnelles**
+
+---
+
+## 🛡️ Points de Vigilance
 
 > [!CAUTION]
-> **Le trading de crypto-monnaies comporte des risques significatifs de perte en capital.**
-> - Ne jamais investir plus que ce que vous pouvez vous permettre de perdre
-> - Les performances passées ne garantissent pas les résultats futurs
-> - Le backtesting est optimiste par nature (overfitting, data leakage)
-> - Les marchés peuvent changer, rendant les modèles obsolètes
+> **Risques Financiers**
+> - Le trading crypto comporte des risques de perte significatifs
+> - Ne jamais investir plus que ce que vous pouvez perdre
+> - Performances passées ≠ résultats futurs
 
 > [!WARNING]
-> **Avant de passer en live :**
-> - Minimum 1 mois de paper trading profitable
-> - Sharpe ratio > 1.0 en paper
+> **Avant Passage Live**
+> - Minimum 1 mois paper trading profitable
+> - Sharpe ratio > 1.0
 > - Drawdown max < 15%
-> - Comprendre chaque composant du système
+> - Backtesting validé
 
 > [!IMPORTANT]
-> **API Keys Security :**
-> - Ne jamais commit les clés dans Git
-> - Utiliser des clés avec permissions minimales
-> - Activer IP whitelist sur exchanges
-> - Désactiver le retrait via API
+> **Sécurité API Keys**
+> - Jamais commit dans Git
+> - Permissions minimales (trade only, no withdraw)
+> - IP whitelist activée sur exchange
+> - Secrets GitHub configurés
 
 ---
 
-## 📚 Ressources
+## 📚 Commandes Utiles
 
-### Documentation
-- [CCXT Documentation](https://docs.ccxt.com/)
-- [VectorBT Documentation](https://vectorbt.dev/)
-- [Stable Baselines3](https://stable-baselines3.readthedocs.io/)
-- [DuckDB Documentation](https://duckdb.org/docs/)
+### Lancement Local
+```powershell
+# Lancement complet (bot + dashboard)
+.\start_trading_app.bat
 
-### Livres Recommandés
-- "Advances in Financial Machine Learning" - Marcos López de Prado
-- "Machine Learning for Asset Managers" - Marcos López de Prado
-- "Algorithmic Trading" - Ernest Chan
+# Dashboard seul
+streamlit run src\monitoring\dashboard.py
+
+# Bot seul
+python scripts\live_trade.py
+```
+
+### Diagnostics
+```powershell
+# Vérifier positions
+python scripts\check_positions.py
+
+# Status complet
+python scripts\check_status.py
+
+# Diagnostic full
+python scripts\full_diagnostic.py
+
+# Test API Kraken
+python scripts\verify_kraken.py
+```
+
+### GitHub Actions
+```bash
+# Voir workflows récents
+gh run list --workflow=trading_bot.yml
+
+# Voir logs d'un run
+gh run view <run-id> --log
+
+# Déclencher manuellement
+gh workflow run trading_bot.yml
+```
 
 ---
 
-*Plan créé le 2026-01-02 - Version 2.0 (Swing Trading Focus)*
+## 📊 Métriques de Suivi
+
+| Métrique | Objectif | Actuel |
+|----------|----------|--------|
+| Uptime GitHub Actions | >99% | À mesurer |
+| Trades/jour | >5 | À mesurer |
+| Win Rate | >50% | À mesurer |
+| Sharpe Ratio (paper) | >1.0 | À mesurer |
+| Max Drawdown | <15% | À mesurer |
+| Temps moyen en position | 1-48h | À mesurer |
+
+---
+
+*Plan restructuré le 2026-01-06 - Version 3.0 (Suivi précis de l'état d'implémentation)*

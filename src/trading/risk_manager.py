@@ -35,7 +35,7 @@ class RiskConfig:
     # Trade frequency limits (AGGRESSIVE MODE)
     max_daily_trades: int = settings.MAX_DAILY_TRADES
     max_trades_per_symbol: int = 5            # Increased: more trades per symbol
-    cooldown_minutes: int = 5                 # Reduced: faster re-entry
+    cooldown_minutes: int = settings.COOLDOWN_MINUTES  # Use from settings
     
     # Portfolio limits
     max_open_positions: int = settings.MAX_OPEN_POSITIONS

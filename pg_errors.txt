@@ -1,0 +1,784 @@
+﻿
+  gh_run_log.txt:159:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:46:34.2271736Z 
+Resolving downloads.s
+ourceforge.net (downl
+oads.sourceforge.net)
+... 104.18.13.149, 
+104.18.12.149, 
+2606:4700::6812:c95, 
+...
+> gh_run_log.txt:160:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:46:34.2272682Z 
+Reusing existing 
+connection to prdownl
+oads.sourceforge.net:
+80.
+  gh_run_log.txt:161:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:46:34.2851615Z 
+HTTP request sent, 
+awaiting response... 
+302 Found
+  gh_run_log.txt:339:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:47:21.8442138Z 
+checking for 
+strchr... yes
+> gh_run_log.txt:340:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:47:21.8890663Z 
+checking for 
+strerror... yes
+  gh_run_log.txt:341:
+trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:47:21.9339156Z 
+checking for 
+strncasecmp... yes
+  gh_run_log.txt:1638
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:31.6689231Z 
+  Using cached jinja2
+-3.1.6-py3-none-any.w
+hl.metadata (2.9 kB)
+> gh_run_log.txt:1639
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:31.6939574Z 
+Collecting 
+jsonschema>=3.0 
+(from altair!=5.4.0,!
+=5.4.1,<7,>=4.0->stre
+amlit>=1.29.0->-r 
+requirements.txt 
+(line 23))
+> gh_run_log.txt:1640
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:31.6952605Z 
+  Using cached jsonsc
+hema-4.25.1-py3-none-
+any.whl.metadata 
+(7.6 kB)
+  gh_run_log.txt:1641
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:31.7389954Z 
+Collecting 
+narwhals>=1.27.1 
+(from altair!=5.4.0,!
+=5.4.1,<7,>=4.0->stre
+amlit>=1.29.0->-r 
+requirements.txt 
+(line 23))
+  gh_run_log.txt:1670
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:32.9683291Z 
+  Using cached markup
+safe-3.0.3-cp313-cp31
+3-manylinux2014_x86_6
+4.manylinux_2_17_x86_
+64.manylinux_2_28_x86
+_64.whl.metadata 
+(2.7 kB)
+> gh_run_log.txt:1671
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:32.9875467Z 
+Collecting jsonschema
+-specifications>=2023
+.03.6 (from jsonschem
+a>=3.0->altair!=5.4.0
+,!=5.4.1,<7,>=4.0->st
+reamlit>=1.29.0->-r 
+requirements.txt 
+(line 23))
+> gh_run_log.txt:1672
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:32.9889202Z 
+  Using cached jsonsc
+hema_specifications-2
+025.9.1-py3-none-any.
+whl.metadata (2.9 kB)
+> gh_run_log.txt:1673
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.0114808Z 
+Collecting 
+referencing>=0.28.4 
+(from jsonschema>=3.0
+->altair!=5.4.0,!=5.4
+.1,<7,>=4.0->streamli
+t>=1.29.0->-r 
+requirements.txt 
+(line 23))
+  gh_run_log.txt:1674
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.0126749Z 
+  Using cached refere
+ncing-0.37.0-py3-none
+-any.whl.metadata 
+(2.8 kB)
+> gh_run_log.txt:1675
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.3990517Z 
+Collecting 
+rpds-py>=0.7.1 (from 
+jsonschema>=3.0->alta
+ir!=5.4.0,!=5.4.1,<7,
+>=4.0->streamlit>=1.2
+9.0->-r 
+requirements.txt 
+(line 23))
+  gh_run_log.txt:1676
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.4004814Z 
+  Using cached rpds_p
+y-0.30.0-cp313-cp313-
+manylinux_2_17_x86_64
+.manylinux2014_x86_64
+.whl.metadata (4.1 
+kB)
+  gh_run_log.txt:1743
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.8441692Z 
+Using cached joblib-1
+.5.3-py3-none-any.whl
+ (309 kB)
+> gh_run_log.txt:1744
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.8455112Z 
+Using cached jsonsche
+ma-4.25.1-py3-none-an
+y.whl (90 kB)
+> gh_run_log.txt:1745
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.8466692Z 
+Using cached jsonsche
+ma_specifications-202
+5.9.1-py3-none-any.wh
+l (18 kB)
+  gh_run_log.txt:1746
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:33.8478001Z 
+Using cached markdown
+_it_py-4.0.0-py3-none
+-any.whl (87 kB)
+  gh_run_log.txt:1766
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:34.1309926Z 
+Using cached pycparse
+r-2.23-py3-none-any.w
+hl (118 kB)
+> gh_run_log.txt:1767
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:48:34.9450062Z 
+Installing collected 
+packages: pytz, 
+websocket-client, 
+watchdog, urllib3, 
+tzdata, 
+typing_extensions, 
+tqdm, tornado, toml, 
+threadpoolctl, 
+tenacity, smmap, 
+six, shellingham, 
+setuptools, rpds-py, 
+python-dotenv, 
+pygments, pycparser, 
+pyarrow, 
+psycopg2-binary, 
+psutil, protobuf, 
+propcache, 
+polars-runtime-32, 
+pillow, packaging, 
+nvidia-nccl-cu12, 
+numpy, narwhals, 
+multidict, mdurl, 
+MarkupSafe, loguru, 
+llvmlite, joblib, 
+idna, h11, 
+frozenlist, duckdb, 
+coincurve, click, 
+charset_normalizer, 
+certifi, cachetools, 
+blinker, attrs, 
+annotated-types, 
+aiohappyeyeballs, 
+yarl, 
+typing-inspection, 
+scipy, requests, 
+referencing, 
+python-dateutil, 
+pydantic-core, 
+polars, numba, 
+markdown-it-py, 
+jinja2, httpcore, 
+gitdb, cffi, anyio, 
+aiosignal, xgboost, 
+scikit-learn, rich, 
+pydeck, pydantic, 
+pycares, pandas, json
+schema-specifications
+, httpx, gitpython, 
+cryptography, 
+aiohttp, typer, 
+python-telegram-bot, 
+pydantic-settings, 
+pandas-ta, 
+jsonschema, aiodns, 
+ccxt, altair, 
+streamlit
+  gh_run_log.txt:1768
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:49:08.8200407Z 
+> gh_run_log.txt:1769
+:trade	🛠️ Install 
+Dependencies	2026-01-
+06T15:49:08.8296032Z 
+Successfully 
+installed 
+MarkupSafe-3.0.3 
+aiodns-3.6.1 aiohappy
+eyeballs-2.6.1 
+aiohttp-3.13.3 
+aiosignal-1.4.0 
+altair-6.0.0 annotate
+d-types-0.7.0 
+anyio-4.12.1 
+attrs-25.4.0 
+blinker-1.9.0 
+cachetools-6.2.4 
+ccxt-4.5.30 
+certifi-2026.1.4 
+cffi-2.0.0 charset_no
+rmalizer-3.4.4 
+click-8.3.1 
+coincurve-21.0.0 
+cryptography-46.0.3 
+duckdb-1.4.3 
+frozenlist-1.8.0 
+gitdb-4.0.12 
+gitpython-3.1.46 
+h11-0.16.0 
+httpcore-1.0.9 
+httpx-0.28.1 
+idna-3.11 
+jinja2-3.1.6 
+joblib-1.5.3 
+jsonschema-4.25.1 jso
+nschema-specification
+s-2025.9.1 
+llvmlite-0.44.0 
+loguru-0.7.3 
+markdown-it-py-4.0.0 
+mdurl-0.1.2 
+multidict-6.7.0 
+narwhals-2.15.0 
+numba-0.61.2 
+numpy-2.2.6 nvidia-nc
+cl-cu12-2.28.9 
+packaging-25.0 
+pandas-2.3.3 
+pandas-ta-0.4.71b0 
+pillow-12.1.0 
+polars-1.36.1 polars-
+runtime-32-1.36.1 
+propcache-0.4.1 
+protobuf-6.33.2 
+psutil-7.2.1 psycopg2
+-binary-2.9.11 
+pyarrow-22.0.0 
+pycares-4.11.0 
+pycparser-2.23 
+pydantic-2.12.5 
+pydantic-core-2.41.5 
+pydantic-settings-2.1
+2.0 pydeck-0.9.1 
+pygments-2.19.2 pytho
+n-dateutil-2.9.0.post
+0 
+python-dotenv-1.2.1 p
+ython-telegram-bot-22
+.5 pytz-2025.2 
+referencing-0.37.0 
+requests-2.32.5 
+rich-14.2.0 
+rpds-py-0.30.0 
+scikit-learn-1.8.0 
+scipy-1.16.3 
+setuptools-80.9.0 
+shellingham-1.5.4 
+six-1.17.0 
+smmap-5.0.2 
+streamlit-1.52.2 
+tenacity-9.1.2 
+threadpoolctl-3.6.0 
+toml-0.10.2 
+tornado-6.5.4 
+tqdm-4.67.1 
+typer-0.21.1 typing-i
+nspection-0.4.2 typin
+g_extensions-4.15.0 
+tzdata-2025.3 
+urllib3-2.6.2 
+watchdog-6.0.0 websoc
+ket-client-1.9.0 
+xgboost-3.1.2 
+yarl-1.22.0
+> gh_run_log.txt:1770
+:trade	🌐 Ensure 
+IPv4 Connectivity	﻿20
+26-01-06T15:49:09.899
+0054Z ##[group]Run # 
+Disable IPv6 to 
+force IPv4 (fixes 
+Supabase connection 
+issues)
+> gh_run_log.txt:1771
+:trade	🌐 Ensure 
+IPv4 Connectivity	202
+6-01-06T15:49:09.8990
+584Z [36;1m# 
+Disable IPv6 to 
+force IPv4 (fixes 
+Supabase connection 
+issues)[0m
+  gh_run_log.txt:1772
+:trade	🌐 Ensure 
+IPv4 Connectivity	202
+6-01-06T15:49:09.8991
+192Z [36;1msudo 
+sysctl -w net.ipv6.co
+nf.all.disable_ipv6=1
+[0m
+  gh_run_log.txt:1804
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:11.7232735Z
+ [32m15:49:11[0m | 
+[1mINFO    [0m | 
+[1mStarting GitHub 
+Actions trading 
+cycle...[0m
+> gh_run_log.txt:1805
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:12.6900929Z
+ [32m15:49:12[0m | 
+[1mINFO    [0m | 
+[1mUsing PostgreSQL 
+(Supabase) 
+storage[0m
+  gh_run_log.txt:1806
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:15.7528439Z
+ [32m15:49:15[0m | 
+[1mINFO    [0m | 
+[1mBot initialized 
+on KRAKEN - Mode: 
+LIVE[0m
+  gh_run_log.txt:1809
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:15.7535044Z
+ [32m15:49:15[0m | 
+[1mINFO    [0m | 
+[1m[INIT] 
+Initializing bot 
+with historical 
+data...[0m
+> gh_run_log.txt:1810
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:18.0461667Z
+ /home/runner/work/bo
+tibus/botibus/src/dat
+a/storage.py:296: 
+UserWarning: pandas 
+only supports 
+SQLAlchemy 
+connectable 
+(engine/connection) 
+or database string 
+URI or sqlite3 
+DBAPI2 connection. 
+Other DBAPI2 objects 
+are not tested. 
+Please consider 
+using SQLAlchemy.
+  gh_run_log.txt:1811
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:49:18.0463156Z
+   return 
+pd.read_sql(query, 
+conn, params=params)
+  gh_run_log.txt:1989
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:18.4025975Z
+ [32m15:53:18[0m | 
+[1mINFO    [0m | 
+[1mSaved 100 rows 
+for BNB/EUR 1h[0m
+> gh_run_log.txt:1990
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.6816748Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mPostgreSQL 
+Connection Error: 
+schema "np" does not 
+exist
+  gh_run_log.txt:1991
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.6817823Z
+ LINE 1: 
+...('b3b8ed0c', 
+'DOT/EUR', 'sell', 
+'market', 'open', 
+np.float64...
+  gh_run_log.txt:1994
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.6819697Z
+ [32m15:53:19[0m | 
+[33m[1mWARNING 
+[0m | 
+[33m[1mFalling 
+back to DuckDB for 
+this operation[0m
+> gh_run_log.txt:1995
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.6927952Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+generator didn't 
+stop after 
+throw()[0m
+> gh_run_log.txt:1996
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7098170Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:1997
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7099099Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2001
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7102930Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m   SL: $1.83 
+(-2.5%) | TP: $1.93 
+(+3.0%)[0m
+> gh_run_log.txt:2002
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7262125Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+Catalog Error: Table 
+with name trades 
+does not exist!
+  gh_run_log.txt:2003
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7262774Z
+ Did you mean 
+"pg_tables"?[0m
+> gh_run_log.txt:2004
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7422514Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:2005
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7423468Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2009
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7426660Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m   SL: $2.07 
+(-2.5%) | TP: $2.18 
+(+3.0%)[0m
+> gh_run_log.txt:2010
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7587994Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+Catalog Error: Table 
+with name trades 
+does not exist!
+  gh_run_log.txt:2011
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7588634Z
+ Did you mean 
+"pg_tables"?[0m
+> gh_run_log.txt:2012
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7749373Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:2013
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7750413Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2017
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7754317Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m   SL: $0.28 
+(-2.5%) | TP: $0.29 
+(+3.0%)[0m
+> gh_run_log.txt:2018
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7919635Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+Catalog Error: Table 
+with name trades 
+does not exist!
+  gh_run_log.txt:2019
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.7920173Z
+ Did you mean 
+"pg_tables"?[0m
+> gh_run_log.txt:2020
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8094271Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:2021
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8095203Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2025
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8098664Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m   SL: $143.79 
+(-2.5%) | TP: 
+$151.90 (+3.0%)[0m
+> gh_run_log.txt:2026
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8263122Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+Catalog Error: Table 
+with name trades 
+does not exist!
+  gh_run_log.txt:2027
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8264094Z
+ Did you mean 
+"pg_tables"?[0m
+> gh_run_log.txt:2028
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8425185Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:2029
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8426235Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2033
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8431282Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m   SL: $0.04 
+(-2.5%) | TP: $0.04 
+(+3.0%)[0m
+> gh_run_log.txt:2034
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8591915Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+saving trade: 
+Catalog Error: Table 
+with name trades 
+does not exist!
+  gh_run_log.txt:2035
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8593213Z
+ Did you mean 
+"pg_tables"?[0m
+> gh_run_log.txt:2036
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8754019Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating balance: 
+Catalog Error: Table 
+with name balance 
+does not exist!
+  gh_run_log.txt:2037
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8755033Z
+ Did you mean 
+"pg_database"?[0m
+  gh_run_log.txt:2042
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8761212Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1m[BALANCE] Total: 
+$1,000.00 | Free: 
+$531.44 | Positions: 
+6/15 | Analyzed: 
+49/49 | Signals: 29 
+| Daily Trades: 0[0m
+> gh_run_log.txt:2043
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8931875Z
+ [32m15:53:19[0m | 
+[31m[1mERROR   
+[0m | 
+[31m[1mError 
+updating bot status: 
+Catalog Error: Table 
+with name bot_status 
+does not exist!
+  gh_run_log.txt:2044
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8932842Z
+ Did you mean "duckdb
+_constraints"?[0m
+  gh_run_log.txt:2045
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:19.8933451Z
+ [32m15:53:19[0m | 
+[1mINFO    [0m | 
+[1mCycle completed 
+successfully.[0m
+> gh_run_log.txt:2046
+:trade	🚀 Run 
+Trading Cycle	2026-01
+-06T15:53:20.1447292Z
+ [32m15:53:20[0m | 
+[1mINFO    [0m | 
+[1mConnections 
+closed. exiting.[0m
+  gh_run_log.txt:2047
+:trade	Post 🐍 Setup 
+Python	﻿2026-01-06T15
+:53:20.6370244Z Post 
+job cleanup.
+
+

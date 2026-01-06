@@ -1,0 +1,42 @@
+
+============================================================
+COMPREHENSIVE BOT DIAGNOSTIC REPORT
+Generated at: 2026-01-06 17:19:17.335893
+============================================================
+
+[1] GITHUB ACTIONS STATUS
+----------------------------------------
+Last 30 runs: 30 success, 0 failures
+Most recent run: 2026-01-06T15:46:17Z -> success
+Average gap between runs: 29.7 min
+Max gap: 52.4 min
+WARNING: Gap > 20 min detected - possible missed runs!
+
+[2] DATABASE STATUS
+----------------------------------------
+Last heartbeat: 2026-01-05 16:04:35.352758
+Time since heartbeat: 1 day, 1:14:42.597019
+CRITICAL: Bot hasn't updated status in over 1 hour!
+This means GH Actions runs are NOT updating the database.
+Open positions in DB: 15
+Exchange: kraken
+Mode: live
+
+Local script using PostgreSQL: False
+
+[3] DIAGNOSIS
+----------------------------------------
+GitHub Actions IS running successfully.
+But the database heartbeat is stale.
+
+Possible causes:
+1. GH Actions can't connect to Supabase (IPv6/IPv4 issue)
+2. DATABASE_URL secret not configured in GitHub
+3. Database writes failing silently in GH Actions
+
+Recommended actions:
+- Check GH Actions logs for database errors
+- Verify DATABASE_URL secret is set correctly
+- Check Supabase dashboard for connection issues
+
+============================================================

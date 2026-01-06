@@ -12,6 +12,7 @@ on:
 jobs:
   trade:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Prevent workflow hangs
     
     steps:
     - name: 📥 Clone Repository
@@ -23,17 +24,28 @@ jobs:
         python-version: '3.13'
         cache: 'pip'
 
+    - name: 🔄 Cache TA-Lib
+      uses: actions/cache@v4
+      id: cache-talib
+      with:
+        path: |
+          /usr/lib/libta_lib*
+          /usr/include/ta-lib
+        key: talib-${{ runner.os }}-0.4.0-v1
+
     - name: 🛠️ Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        # Installation de TA-Lib depuis les sources (plus fiable sur GitHub Actions)
-        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
-        tar -xzf ta-lib-0.4.0-src.tar.gz
-        cd ta-lib/
-        ./configure --prefix=/usr
-        make
-        sudo make install
-        cd ..
+        # Install TA-Lib from source only if not cached
+        if [ "${{ steps.cache-talib.outputs.cache-hit }}" != 'true' ]; then
+          wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+          tar -xzf ta-lib-0.4.0-src.tar.gz
+          cd ta-lib/
+          ./configure --prefix=/usr
+          make
+          sudo make install
+          cd ..
+        fi
         pip install -r requirements.txt
 
     - name: 🌐 Ensure IPv4 Connectivity

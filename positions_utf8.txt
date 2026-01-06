@@ -1,0 +1,137 @@
+﻿.\venv\Scripts\python
+.exe : 2026-01-06 
+17:40:07.791 | INFO  
+   | src.data.storage
+:__init__:44 - Using 
+local DuckDB storage 
+at data\duckdb\market
+_data.duckdb
+Au caractère Ligne:1 
+: 1
++ .\venv\Scripts\pyth
+on.exe scripts/check_
+positions.py 2>&1 > 
+positions ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (2026-01   
+ -06 17:4...ket_d    
+ata.duckdb:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+================================================================================
+OPEN POSITIONS ANALYSIS
+================================================================================
+
+STX/EUR (BUY)
+  Entry: $0.3183 @ 2026-01-05 15:46:54.028880
+  Current: $0.3131
+  P&L: -1.63% ($-0.38)
+Traceback (most 
+recent call last):
+  File "C:\Users\nath
+a\tradingllm\scripts\
+check_positions.py", 
+line 81, in <module>
+    asyncio.run(check
+_positions())
+    ~~~~~~~~~~~^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Users\nath
+a\AppData\Local\Progr
+ams\Python\Python313\
+Lib\asyncio\runners.p
+y", line 195, in run
+    return 
+runner.run(main)
+           
+~~~~~~~~~~^^^^^^
+  File "C:\Users\nath
+a\AppData\Local\Progr
+ams\Python\Python313\
+Lib\asyncio\runners.p
+y", line 118, in run
+    return self._loop
+.run_until_complete(t
+ask)
+           ~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~^^
+^^^^
+  File "C:\Users\nath
+a\AppData\Local\Progr
+ams\Python\Python313\
+Lib\asyncio\base_even
+ts.py", line 725, in 
+run_until_complete
+    return 
+future.result()
+           
+~~~~~~~~~~~~~^^
+  File "C:\Users\nath
+a\tradingllm\scripts\
+check_positions.py", 
+line 71, in 
+check_positions
+    print(f"  
+Status: {status}")
+    ~~~~~^^^^^^^^^^^^
+^^^^^^^^^^^
+  File "C:\Users\nath
+a\AppData\Local\Progr
+ams\Python\Python313\
+Lib\encodings\cp1252.
+py", line 19, in 
+encode
+    return codecs.cha
+rmap_encode(input,sel
+f.errors,encoding_tab
+le)[0]
+           ~~~~~~~~~~
+~~~~~~~~~~~^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^
+UnicodeEncodeError: 
+'charmap' codec 
+can't encode 
+character '\u26aa' 
+in position 10: 
+character maps to 
+<undefined>
+kraken requires to 
+release all 
+resources with an 
+explicit call to the 
+.close() coroutine. 
+If you are using the 
+exchange instance 
+with async 
+coroutines, add 
+`await 
+exchange.close()` to 
+your code into a 
+place when you're 
+done with the 
+exchange and don't 
+need the exchange 
+instance anymore (at 
+the end of your 
+async coroutine).
+Unclosed connector
+connections: ['deque(
+[(<aiohttp.client_pro
+to.ResponseHandler 
+object at 
+0x0000025D5F640590>, 
+1236938.6429545)])']
+connector: <aiohttp.c
+onnector.TCPConnector
+ object at 
+0x0000025D5F5FD6A0>

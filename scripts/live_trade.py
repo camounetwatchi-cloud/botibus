@@ -111,7 +111,7 @@ class OptimizedTradingBot:
         self.last_analysis: Dict[str, datetime] = {}
         
         # Analysis cooldown (AGGRESSIVE: reduced for more frequent analysis)
-        self.analysis_cooldown = timedelta(minutes=1)
+        self.analysis_cooldown = timedelta(seconds=10)
         
         logger.info(f"Trading symbols: {self.symbols}")
     
@@ -144,15 +144,32 @@ class OptimizedTradingBot:
         
         logger.info(f"Loaded {len(self.open_positions)} open positions")
         
-        # Fetch initial data for all symbols
-        for symbol in self.symbols:
+        # Load cooldown state from database (persist across restarts)
+        cooldowns = self.storage.get_cooldowns()
+        for symbol, last_time in cooldowns.items():
+            self.risk_manager.state.last_trade_time[symbol] = last_time
+        logger.info(f"Loaded {len(cooldowns)} cooldown states from DB")
+        
+        # Clear expired cooldowns
+        self.storage.clear_expired_cooldowns(settings.COOLDOWN_MINUTES)
+        
+        # PARALLEL fetch for faster initialization
+        async def fetch_symbol(sym):
             try:
-                df = await self.collector.fetch_ohlcv(symbol, "1h", limit=200)
+                df = await self.collector.fetch_ohlcv(sym, "1h", limit=100)
                 if not df.empty:
-                    self.storage.save_ohlcv(df, symbol, settings.ACTIVE_EXCHANGE, "1h")
-                    logger.info(f"[OK] Loaded {len(df)} candles for {symbol}")
+                    self.storage.save_ohlcv(df, sym, settings.ACTIVE_EXCHANGE, "1h")
+                    return (sym, len(df), None)
+                return (sym, 0, None)
             except Exception as e:
-                logger.error(f"Error loading {symbol}: {e}")
+                return (sym, 0, str(e))
+        
+        results = await asyncio.gather(*[fetch_symbol(s) for s in self.symbols])
+        for sym, count, err in results:
+            if err:
+                logger.error(f"Error loading {sym}: {err}")
+            elif count > 0:
+                logger.info(f"[OK] Loaded {count} candles for {sym}")
         
         logger.info("Initialization complete")
     
@@ -165,13 +182,12 @@ class OptimizedTradingBot:
         """
         try:
             # Fetch latest candles
-            df = await self.collector.fetch_ohlcv(symbol, "1h", limit=100)
+            df = await self.collector.fetch_ohlcv(symbol, "1h", limit=50)
             
             if df.empty:
                 return None, None
             
-            # Save to storage
-            self.storage.save_ohlcv(df, symbol, settings.ACTIVE_EXCHANGE, "1h")
+            # NOTE: OHLCV saved only at initialization for speed
             
             current_price = df.iloc[-1]['close']
             self.price_cache[symbol] = current_price
@@ -194,7 +210,7 @@ class OptimizedTradingBot:
                     return current_price, None
             
             # Add technical indicators
-            df = TechnicalFeatures.add_all_features(df, include_advanced=True)
+            df = TechnicalFeatures.add_all_features(df, include_advanced=False)
             
             # Generate signal
             signal = self.signal_generator.generate(df, symbol)
@@ -335,10 +351,10 @@ class OptimizedTradingBot:
         if not signal.is_actionable:
             return
         
-        # Check if we can trade
-        can_trade, reason = self.risk_manager.can_trade(symbol, self.free_balance)
+        # Check if we can trade (use total_balance for exposure check, not free_balance)
+        can_trade, reason = self.risk_manager.can_trade(symbol, self.total_balance)
         if not can_trade:
-            logger.debug(f"[{symbol}] Trade blocked: {reason}")
+            logger.info(f"[{symbol}] Trade blocked: {reason}")
             return
         
         # Get ATR for dynamic TP calculation
@@ -353,7 +369,7 @@ class OptimizedTradingBot:
         )
         
         if position_size <= 0:
-            logger.debug(f"[{symbol}] Position size too small")
+            logger.info(f"[{symbol}] Position size too small")
             return
         
         # Calculate trade value
@@ -399,6 +415,9 @@ class OptimizedTradingBot:
             'stop_loss': stop_loss,
             'take_profit': take_profit,
         }
+        
+        # Save cooldown to database for persistence across restarts
+        self.storage.save_cooldown(symbol, datetime.now())
         
         # Initialize peak price tracking
         self.position_peaks[trade_id] = current_price
@@ -492,7 +511,7 @@ class OptimizedTradingBot:
         print("="*70 + "\n")
         
         # Trading loop (AGGRESSIVE: faster cycles)
-        cycle_interval = 45  # 45 seconds between cycles for faster reaction
+        cycle_interval = settings.TRADING_CYCLE_SECONDS
         iteration = 0
         
         try:

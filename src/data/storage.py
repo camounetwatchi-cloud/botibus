@@ -31,6 +31,8 @@ class DataStorage:
         self.use_postgres = settings.DATABASE_URL is not None
         self._postgres_available = True  # Track if PostgreSQL is reachable
         
+        self.connection_error: Optional[str] = None  # Store connection error details
+        
         if self.use_postgres:
             # Test connection on init
             if self._test_postgres_connection():
@@ -44,6 +46,13 @@ class DataStorage:
             logger.info(f"Using local DuckDB storage at {self.db_path}")
             
         self._init_tables()
+
+    @property
+    def storage_type(self) -> str:
+        """Return a user-friendly string describing the active storage backend."""
+        if self.use_postgres:
+            return "Supabase (Cloud)"
+        return "DuckDB (Local)"
 
     def _test_postgres_connection(self) -> bool:
         """Test PostgreSQL connection with retry logic."""
@@ -60,6 +69,7 @@ class DataStorage:
                 conn.close()
                 return True
             except Exception as e:
+                self.connection_error = str(e)  # Capture the error
                 logger.warning(f"PostgreSQL connection attempt {attempt + 1}/{max_retries} failed: {e}")
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (attempt + 1))
