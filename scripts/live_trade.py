@@ -26,7 +26,7 @@ from src.data.storage import DataStorage
 from src.data.collector import DataCollector
 from src.config.settings import settings
 from src.features.technical import TechnicalFeatures
-from src.ml.signal_generator import SignalGenerator, MLSignal
+from src.ml.strategy_orchestrator import StrategyOrchestrator, OrchestratedSignal as MLSignal
 from src.trading.risk_manager import RiskManager, RiskConfig
 from src.trading.fee_calculator import fee_calculator
 from src.learning.performance import PerformanceAnalyzer
@@ -58,7 +58,7 @@ class OptimizedTradingBot:
         """Initialize the trading bot with all components."""
         self.storage = DataStorage()
         self.collector = DataCollector()
-        self.signal_generator = SignalGenerator()
+        self.signal_generator = StrategyOrchestrator()
         self.performance_analyzer = PerformanceAnalyzer(self.storage)
         
         # Check if we have API keys for live trading
@@ -413,6 +413,12 @@ class OptimizedTradingBot:
             logger.info(f"[{symbol}] Position size too small")
             return
         
+        # Apply STRONG signal multiplier for high-confidence confluence
+        signal_strength = getattr(signal, 'signal_strength', 'NORMAL')
+        if signal_strength == "STRONG":
+            position_size *= settings.STRONG_SIGNAL_SIZE_MULTIPLIER
+            logger.info(f"[{symbol}] ⚡ STRONG signal - size x{settings.STRONG_SIGNAL_SIZE_MULTIPLIER}")
+        
         # Calculate trade value and entry fees
         trade_value = position_size * current_price
         entry_fees = fee_calculator.calculate_entry_fees(trade_value, is_margin=True)
@@ -483,6 +489,47 @@ class OptimizedTradingBot:
         )
         logger.info(f"   Entry Fee: ${entry_fees['total']:.2f} | Reasons: {', '.join(signal.reasons[:3])}")
         logger.info(f"   SL: ${stop_loss:,.2f} (-2.5%) | TP: ${take_profit:,.2f} (+{tp_pct:.1f}%)")
+
+        # --- PYRAMIDING SAFETY: Move SL of existing positions to Breakeven ---
+        for tid, pos in self.open_positions.items():
+            if pos['symbol'] == symbol and tid != trade_id:
+                # Existing position for same symbol
+                
+                # Only apply if same direction (Pyramiding)
+                if pos['side'] == side:
+                    old_sl = pos.get('stop_loss', 0)
+                    entry = pos['entry_price']
+                    
+                    # Logic: Ensure SL is at least at Entry Price (Breakeven)
+                    # If we already have a Trailing Stop higher than Entry, keep it.
+                    
+                    if side == 'buy':
+                        new_sl = max(old_sl, entry)
+                        if new_sl > old_sl:
+                            pos['stop_loss'] = new_sl
+                            if tid in self.risk_manager.state.open_positions:
+                                self.risk_manager.state.open_positions[tid].stop_loss = new_sl
+                            logger.info(f"[{symbol}] Pyramiding Safety: Moved SL of {tid} to Breakeven (${new_sl:.2f})")
+                            
+                    elif side == 'sell':
+                        # For shorts, SL should be <= Entry. So min(old_sl, entry)
+                        # But 'stop_loss' for short is a PRICE > Entry.
+                        # Wait, Short SL is ABOVE entry.
+                        # Breakeven for Short is lowering SL to Entry Price.
+                        # So we want new_sl = min(old_sl, entry)
+                        
+                        # Stop Loss for Short: Start at 1.025 * Entry.
+                        # We want to move it down to Entry.
+                        
+                        # If old_sl is 0 (uninitialized?), careful.
+                        if old_sl == 0: old_sl = entry * 1.5 # Safety
+                        
+                        new_sl = min(old_sl, entry)
+                        if new_sl < old_sl:
+                             pos['stop_loss'] = new_sl
+                             if tid in self.risk_manager.state.open_positions:
+                                self.risk_manager.state.open_positions[tid].stop_loss = new_sl
+                             logger.info(f"[{symbol}] Pyramiding Safety: Moved SL of {tid} to Breakeven (${new_sl:.2f})")
     
     async def run_cycle(self):
         """
@@ -557,12 +604,18 @@ class OptimizedTradingBot:
             if symbol in analysis_map:
                 price, signal = analysis_map[symbol]
                 # If signal is SELL or STRONG_SELL, close it standardly
-                if signal.action == "SELL":
-                    logger.info(f"[{symbol}] Natural Exit triggered by SELL signal")
+                if signal.action == "SELL" and pos['side'] == 'buy':
+                    logger.info(f"[{symbol}] Natural Exit triggered by SELL signal (Closing LONG)")
                     # Calculate approximate PnL for logging content
                     entry = pos['entry_price']
                     pnl = (price - entry) * pos['amount']
-                    await self.close_position(trade_id, price, "SIGNAL_EXIT", pnl)
+                    await self.close_position(trade_id, price, "SIGNAL_EXIT_LONG", pnl)
+                elif signal.action == "BUY" and pos['side'] == 'sell':
+                    logger.info(f"[{symbol}] Natural Exit triggered by BUY signal (Closing SHORT)")
+                    # Calculate approximate PnL for logging content
+                    entry = pos['entry_price']
+                    pnl = (entry - price) * pos['amount']
+                    await self.close_position(trade_id, price, "SIGNAL_EXIT_SHORT", pnl)
 
         # --- 5. Arbitrage & Entry Logic ---
         
@@ -575,27 +628,28 @@ class OptimizedTradingBot:
         held_symbols = {p['symbol'] for p in self.open_positions.values()}
         
         for symbol, (price, signal) in analysis_map.items():
-            if symbol not in held_symbols:
-                # Potential Entry (BUY or SHORT opportunity)
-                if signal.is_actionable:
-                    if signal.action == "BUY":
-                        opportunities.append({
-                            'symbol': symbol,
-                            'price': price,
-                            'signal': signal,
-                            'score': signal.confidence,
-                            'direction': 'buy'
-                        })
-                    elif signal.action == "SELL":
-                        # SHORT opportunity - margin trading allows shorting
-                        opportunities.append({
-                            'symbol': symbol,
-                            'price': price,
-                            'signal': signal,
-                            'score': signal.confidence,
-                            'direction': 'sell'  # Mark as short
-                        })
-            else:
+            # Potential Entry (BUY or SHORT opportunity) - CHECK ALL, even if held (Pyramiding)
+            if signal.is_actionable:
+                if signal.action == "BUY":
+                    opportunities.append({
+                        'symbol': symbol,
+                        'price': price,
+                        'signal': signal,
+                        'score': signal.confidence,
+                        'direction': 'buy'
+                    })
+                elif signal.action == "SELL":
+                    # SHORT opportunity - margin trading allows shorting
+                    opportunities.append({
+                        'symbol': symbol,
+                        'price': price,
+                        'signal': signal,
+                        'score': signal.confidence,
+                        'direction': 'sell'  # Mark as short
+                    })
+            
+            # Also check for Weakest Holdings (for Arbitrage)
+            if symbol in held_symbols:
                 # Existing Holding - track its score for comparison
                 # Find the trade_id for this symbol
                 trade_id = next((tid for tid, p in self.open_positions.items() if p['symbol'] == symbol), None)

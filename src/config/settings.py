@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     MARGIN_ROLLOVER_FEE: float = 0.0002      # 0.02% rollover fee (per 4 hours)
     ROLLOVER_INTERVAL_HOURS: int = 4         # Kraken charges every 4 hours
     
+    # Strategy Orchestrator Settings
+    STRATEGY_WEIGHT_SWING: float = 0.50       # Weight for SwingStrategy (50%)
+    STRATEGY_WEIGHT_ML: float = 0.50          # Weight for SignalGenerator (50%)
+    STRONG_SIGNAL_SIZE_MULTIPLIER: float = 1.5  # 50% larger positions for STRONG signals
+    
     # Kelly Criterion Settings (Intelligent Position Sizing)
     USE_KELLY_SIZING: bool = True            # Enable Kelly-based sizing
     KELLY_FRACTION_CAP: float = 0.25         # Max 25% per position

@@ -2,7 +2,7 @@
 
 > **Objectif** : Bot de trading automatisé, efficace, auto-apprenant, pour du swing trading agressif.
 > 
-> **Dernière mise à jour** : 2026-01-06 | **Version** : 3.1
+> **Dernière mise à jour** : 2026-01-06 | **Version** : 3.2
 > **Dernier Audit Technique** : 2026-01-06 ✅
 
 ---
@@ -15,7 +15,7 @@
 | **Trading Engine** | ✅ Opérationnel | `OptimizedTradingBot` en production |
 | **Dashboard Monitoring** | ✅ Opérationnel | Streamlit avec 4 pages |
 | **Stockage Données** | ✅ Opérationnel | PostgreSQL (Supabase) + DuckDB fallback |
-| **GitHub Actions** | ✅ Opérationnel | Exécution toutes les 15 minutes |
+| **GitHub Actions** | ⚠️ Fix en cours | Problème de permissions cache TA-Lib |
 | **Gestion des Risques** | ✅ Opérationnel | Stop-loss, take-profit, trailing stop |
 | **Frais Trading Réels** | ✅ Opérationnel | Frais margin Kraken: opening, rollover, trading |
 | **Signaux ML** | ⚠️ Partiellement | Heuristiques actives, ML réel à implémenter |
@@ -76,7 +76,7 @@
 tradingllm/
 ├── .github/
 │   └── workflows/
-│       └── trading_bot.yml      ✅ Workflow GitHub Actions
+│       └── trading_bot.yml      ⚠️ Fix cache permissions
 │
 ├── scripts/
 │   ├── live_trade.py            ✅ Bot principal (OptimizedTradingBot)
@@ -110,7 +110,7 @@ tradingllm/
 │   │   ├── dashboard.py         ✅ Dashboard Streamlit
 │   │   └── dashboard.css        ✅ Styling personnalisé
 │   │
-│   └── strategies/              ⚠️ Prévu mais non utilisé
+│   └── strategies/              ✅ SwingStrategy intégrée via Orchestrator
 │
 ├── tests/
 │   ├── test_risk_manager.py     ✅ Tests Risk Manager
@@ -179,7 +179,7 @@ SYMBOLS = [
 - [x] Configuration centralisée (pydantic-settings)
 - [x] Gestion environnement (.env)
 - [x] Logging avec rotation (loguru)
-- [x] GitHub Actions workflow (cron 15min)
+- [x] GitHub Actions workflow (fix TA-Lib cache)
 - [x] Scripts de lancement Windows (.bat, .ps1)
 
 ### Module 2 : Collecte de Données ✅ COMPLET
@@ -261,7 +261,7 @@ SYMBOLS = [
 **Objectif** : Maximiser les gains exponentiels tout en protégeant le capital.
 
 - [x] **Critère de Kelly (Half-Kelly)** : Taille de position basée sur l'espérance mathématique de gain.
-- [ ] **Pyramiding** : Ajouter à une position gagnante (scale-in) si le trend se confirme + SL Break-even.
+- [x] **Pyramiding** : Ajouter à une position gagnante (scale-in) si le trend se confirme + SL Break-even.
 - [ ] **Yield Farming** : (Exploratoire) Placer le capital "dormant" en staking flexible (si possible via API).
 - [ ] **Smart Re-entry** : Ré-entrer rapidement après une "mèche" de liquidation si le signal reste valide.
 
@@ -272,30 +272,35 @@ SYMBOLS = [
 ### 🔴 Priorité Immédiate : Le "Cerveau Financier"
 **Pourquoi ?** Pour qu'il arrête de trader "bêtement" et commence à gérer le capital comme un pro.
 
-1. **Implémenter `RiskManager` 2.0 (Kelly + Pyramiding)**
+1. **Fix GitHub Actions** (TA-Lib Cache)
+   - Fichier : `.github/workflows/trading_bot.yml`
+   - Action : Installer TA-Lib localement pour éviter les erreurs de permission.
+
+2. **Implémenter `RiskManager` 2.0 (Kelly + Pyramiding)**
    - Fichiers : `src/trading/risk_manager.py`
    - Action : Remplacer sizing statique par dynamique.
 
-2. **Créer le module `ActiveLearning`**
+3. **Créer le module `ActiveLearning`**
    - Fichiers : `src/learning/performance.py`
    - Action : Feedback loop qui lit la DB et update les configs.
 
-3. **Backtesting Rapide**
+4. **Backtesting Rapide**
    - Fichiers : `src/backtest/simple_runner.py`
    - Action : Valider que le Kelly Criterion n'est pas trop agressif.
 
 ### 🟡 Priorité Secondaire : Raffinement
-4. **Alertes Telegram Interactives** (pour valider les décisions "agressives" en temps réel).
-5. **Amélioration du Dashboard** (Voir les métriques d'apprentissage : "Je suis confiant sur SOL, méfiant sur XRP").
+5. **Alertes Telegram Interactives** (pour valider les décisions "agressives" en temps réel).
+6. **Amélioration du Dashboard** (Voir les métriques d'apprentissage : "Je suis confiant sur SOL, méfiant sur XRP").
 
 ---
 
 ## 📋 Roadmap Technique
 
-### Phase 1 : Intelligence Financière (Cette semaine)
-- [ ] Coder `SafetyChecks` pour le pyramiding (éviter le sur-levier).
-- [ ] Intégrer la formule de Kelly dans `calculate_position_size`.
-- [ ] Activer le "Breakeven Stop" automatique pour les positions pyramidées.
+### Phase 1 : Maintenance et Stabilité (Aujourd'hui)
+- [/] Réparer le cache TA-Lib dans GitHub Actions.
+- [x] Coder `SafetyChecks` pour le pyramiding (éviter le sur-levier).
+- [x] Intégrer la formule de Kelly dans `calculate_position_size`.
+- [x] Activer le "Breakeven Stop" automatique pour les positions pyramidées.
 
 ### Phase 2 : Conscience de Soi (Semaine pro)
 - [ ] Le bot doit savoir : "Je suis en Drawdown de 5%, je réduis mon risque de moitié".
