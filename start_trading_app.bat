@@ -42,7 +42,7 @@ set "PYTHONPATH=%CD%"
 timeout /t 2 /nobreak >nul
 echo.
 echo Starting Dashboard...
-start "Antigravity Trading Terminal" cmd /c "title Trading Terminal && color 0B && set PYTHONPATH=%CD% && venv\Scripts\python.exe -m streamlit run src\monitoring\dashboard.py --server.port 8501"
+start "Antigravity Trading Terminal" cmd /c "title Trading Terminal && color 0B && set PYTHONPATH=%CD% && set AUTOSTART_BOT=true&& venv\Scripts\python.exe -m streamlit run src\monitoring\dashboard.py --server.port 8501"
 
 echo.
 echo =====================================================

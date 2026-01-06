@@ -8,3 +8,8 @@ venv/
 .idea/
 .vscode/
 *.log
+*.txt
+!requirements.txt
+*.json
+!package.json
+!tsconfig.json

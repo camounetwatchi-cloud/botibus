@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from loguru import logger
 from pathlib import Path
 import pickle
+from src.config.settings import settings
 
 
 @dataclass  
@@ -43,10 +44,10 @@ class SignalGenerator:
         'volume_momentum': 0.20,
     }
     
-    # Thresholds - ULTRA AGGRESSIVE MODE for maximum trade frequency
-    MIN_CONFIDENCE = 0.05  # Ultra-low for more signals
-    STRONG_SIGNAL_THRESHOLD = 0.50  # Lower for more strong signals
-    ACTION_THRESHOLD = 0.05  # Ultra-aggressive threshold
+    # Thresholds - Use settings as single source of truth
+    MIN_CONFIDENCE = settings.MIN_SIGNAL_CONFIDENCE  # From settings (0.20)
+    STRONG_SIGNAL_THRESHOLD = settings.STRONG_SIGNAL_THRESHOLD  # From settings (0.70)
+    ACTION_THRESHOLD = 0.15  # Minimum score to trigger action (avoid ultra-weak signals)
     
     def __init__(self, model_path: Optional[str] = None):
         """

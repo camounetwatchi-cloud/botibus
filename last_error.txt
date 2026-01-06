@@ -1,2 +1,0 @@
-connection to server at "db.fiejpifwokyteprirvqp.supabase.co" (2a05:d012:42e:5711:eb:5b2e:e6b0:668), port 6543 failed: FATAL:  SASL authentication failed
-connection to server at "db.fiejpifwokyteprirvqp.supabase.co" (2a05:d012:42e:5711:eb:5b2e:e6b0:668), port 6543 failed: FATAL:  SASL authentication failed

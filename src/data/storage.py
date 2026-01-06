@@ -1,4 +1,7 @@
-import duckdb
+try:
+    import duckdb
+except ImportError:
+    duckdb = None
 import psycopg2
 from psycopg2.extras import execute_values
 import pandas as pd
@@ -11,6 +14,7 @@ from loguru import logger
 from src.config.settings import settings
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any, Union, Generator
+import warnings
 
 class DataStorage:
     """
@@ -43,9 +47,18 @@ class DataStorage:
                 self._postgres_available = False
         
         if not self.use_postgres:
-            logger.info(f"Using local DuckDB storage at {self.db_path}")
-            
-        self._init_tables()
+            if duckdb is None:
+                logger.error("DuckDB is not installed and PostgreSQL is unavailable. Storage cannot function.")
+                # We can't raise an error here as it might crash the dashboard loop. 
+                # Just set a flag that storage is broken.
+                self.storage_broken = True
+            else:
+                logger.info(f"Using local DuckDB storage at {self.db_path}")
+                self.storage_broken = False
+                self._init_tables()
+        else:
+            self.storage_broken = False
+            self._init_tables()
 
     @property
     def storage_type(self) -> str:
@@ -173,7 +186,13 @@ class DataStorage:
                         entry_time TIMESTAMP,
                         exit_time TIMESTAMP,
                         pnl DOUBLE,
-                        fee DOUBLE
+                        fee DOUBLE,
+                        gross_pnl DOUBLE,
+                        net_pnl DOUBLE,
+                        entry_fee DOUBLE,
+                        exit_fee DOUBLE,
+                        rollover_fee DOUBLE,
+                        total_fees DOUBLE
                     )
                 """)
                 conn.execute("""
@@ -298,7 +317,13 @@ class DataStorage:
                     entry_time TIMESTAMP,
                     exit_time TIMESTAMP,
                     pnl DOUBLE PRECISION,
-                    fee DOUBLE PRECISION
+                    fee DOUBLE PRECISION,
+                    gross_pnl DOUBLE PRECISION,
+                    net_pnl DOUBLE PRECISION,
+                    entry_fee DOUBLE PRECISION,
+                    exit_fee DOUBLE PRECISION,
+                    rollover_fee DOUBLE PRECISION,
+                    total_fees DOUBLE PRECISION
                 )
             """
             
@@ -419,7 +444,9 @@ class DataStorage:
         try:
             with self._get_connection() as conn:
                 if self.use_postgres:
-                    return pd.read_sql(query, conn, params=(symbol, timeframe))
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=UserWarning, message=".*pandas only supports SQLAlchemy connectable.*")
+                        return pd.read_sql(query, conn, params=(symbol, timeframe))
                 else:
                     return conn.execute(query, [symbol, timeframe]).df()
         except Exception as e:
@@ -531,7 +558,9 @@ class DataStorage:
         try:
             with self._get_connection() as conn:
                 if self.use_postgres:
-                    return pd.read_sql(query, conn, params=params)
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=UserWarning, message=".*pandas only supports SQLAlchemy connectable.*")
+                        return pd.read_sql(query, conn, params=params)
                 else:
                     return conn.execute(query, params).df()
         except Exception as e:
@@ -709,7 +738,9 @@ class DataStorage:
         try:
             with self._get_connection() as conn:
                 if self.use_postgres:
-                    return pd.read_sql(query, conn, params=[cutoff])
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=UserWarning, message=".*pandas only supports SQLAlchemy connectable.*")
+                        return pd.read_sql(query, conn, params=[cutoff])
                 else:
                     return conn.execute(query, [cutoff]).df()
         except Exception as e:

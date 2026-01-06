@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     RISK_PER_TRADE: float = 0.015            # Risk 1.5% per trade (conservative)
     
     # Risk Management
-    DEFAULT_STOP_LOSS: float = 0.025         # 2.5% stop loss
-    DEFAULT_TAKE_PROFIT: float = 0.045       # 4.5% take profit (base, dynamic in code)
+    DEFAULT_STOP_LOSS: float = 0.02          # 2% stop loss (tighter for better R:R)
+    DEFAULT_TAKE_PROFIT: float = 0.05        # 5% take profit (1:2.5 R:R ratio)
     MAX_DAILY_TRADES: int = 9999             # Effectively unlimited
     COOLDOWN_MINUTES: int = 1                # Ultra-aggressive: minimal cooldown for fastest re-entry
     MAX_OPEN_POSITIONS: int = 30             # Max concurrent positions (paper trading)
@@ -70,14 +70,30 @@ class Settings(BaseSettings):
     STRONG_SIGNAL_THRESHOLD: float = 0.70    # Strong signal threshold
     
     # Confidence-based position sizing multipliers
-    CONFIDENCE_MULTIPLIER_LOW: float = 0.5   # 50-60% confidence
-    CONFIDENCE_MULTIPLIER_MEDIUM: float = 0.8  # 60-70% confidence
+    CONFIDENCE_MULTIPLIER_LOW: float = 0.3   # 50-60% confidence (reduced for weak signals)
+    CONFIDENCE_MULTIPLIER_MEDIUM: float = 0.7  # 60-70% confidence
     CONFIDENCE_MULTIPLIER_HIGH: float = 1.0  # 70-85% confidence
     CONFIDENCE_MULTIPLIER_VERY_HIGH: float = 1.2  # >85% confidence
+    
+    # Simulated Slippage (Paper Trading Realism)
+    SLIPPAGE_PERCENT: float = 0.0005         # 0.05% per execution (realistic market impact)
     
     # Trading Fees
     MAKER_FEE: float = 0.001                 # 0.1% maker fee
     TAKER_FEE: float = 0.001                 # 0.1% taker fee
+    
+    # Kraken Margin Trading Fees (realistic)
+    MARGIN_OPENING_FEE: float = 0.0002       # 0.02% margin opening fee
+    MARGIN_ROLLOVER_FEE: float = 0.0002      # 0.02% rollover fee (per 4 hours)
+    ROLLOVER_INTERVAL_HOURS: int = 4         # Kraken charges every 4 hours
+    
+    # Kelly Criterion Settings (Intelligent Position Sizing)
+    USE_KELLY_SIZING: bool = True            # Enable Kelly-based sizing
+    KELLY_FRACTION_CAP: float = 0.25         # Max 25% per position
+    KELLY_LOOKBACK_TRADES: int = 50          # Trades to analyze for Kelly
+    
+    # Market Regime Detection
+    ADX_TREND_THRESHOLD: float = 25.0        # ADX > 25 = trending market
     
     # Cycle Timing (AGGRESSIVE MODE)
     TRADING_CYCLE_SECONDS: int = 15          # Fast cycles for quick reaction

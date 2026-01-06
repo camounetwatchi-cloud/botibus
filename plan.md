@@ -17,6 +17,7 @@
 | **Stockage Données** | ✅ Opérationnel | PostgreSQL (Supabase) + DuckDB fallback |
 | **GitHub Actions** | ✅ Opérationnel | Exécution toutes les 15 minutes |
 | **Gestion des Risques** | ✅ Opérationnel | Stop-loss, take-profit, trailing stop |
+| **Frais Trading Réels** | ✅ Opérationnel | Frais margin Kraken: opening, rollover, trading |
 | **Signaux ML** | ⚠️ Partiellement | Heuristiques actives, ML réel à implémenter |
 | **Backtesting** | ❌ Non implémenté | VectorBT prévu |
 | **Auto-apprentissage** | ❌ Non implémenté | Ré-entraînement automatique prévu |
@@ -248,201 +249,71 @@ SYMBOLS = [
 - [ ] Métriques (Sharpe, Sortino, Calmar)
 - [ ] Rapports automatisés
 
-### Module 9 : Auto-Apprentissage ❌ NON IMPLÉMENTÉ
+### Module 9: Auto-Apprentissage & Intelligence Active ✅ PARTIEL
+**Objectif** : Transformer le bot statique en agent adaptatif.
 
-- [ ] Pipeline ré-entraînement
-- [ ] Évaluation automatique performance
-- [ ] A/B testing modèles
-- [ ] Model versioning
-- [ ] Rollback automatique
+- [x] **Performance Analyzer** : Calcul du Win Rate/Ratio par crypto (Derniers 10/50 trades).
+- [x] **Dynamic Weights** : Ajustement auto de la confiance (Miser plus sur ce qui marche).
+- [x] **Regime Detection** : Identification de l'état du marché (Trend vs Range) via ADX/BB.
+- [ ] **Feedback Loop** : Le bot ajuste ses seuils de déclenchement selon ses résultats réels.
 
----
+### Module 10: Optimisation Financière ("Smart Aggression") ✅ PARTIEL
+**Objectif** : Maximiser les gains exponentiels tout en protégeant le capital.
 
-## 🎯 Axes d'Amélioration Prioritaires
-
-### 🔴 Priorité Haute
-
-#### 1. Implémentation ML Réel
-**État** : Le bot utilise actuellement des heuristiques pour simuler le ML.
-
-**Actions requises** :
-- [ ] Collecter historique trades pour dataset
-- [ ] Entraîner XGBoost avec features techniques
-- [ ] Implémenter évaluation walk-forward
-- [ ] Comparer performance heuristique vs ML
-- [ ] Déployer modèle si meilleur
-
-**Fichiers concernés** :
-- `src/ml/signal_generator.py` - Intégrer vrai modèle
-- `src/ml/models/xgb_model.py` - À créer
-- `scripts/train_model.py` - À créer
-
-#### 2. Backtesting Framework
-**État** : Aucun backtesting disponible.
-
-**Actions requises** :
-- [ ] Installer et configurer VectorBT
-- [ ] Créer wrapper pour stratégie actuelle
-- [ ] Implémenter walk-forward validation
-- [ ] Générer rapports métriques
-- [ ] Valider avant passage live
-
-**Fichiers concernés** :
-- `src/backtest/engine.py` - À créer
-- `src/backtest/metrics.py` - À créer
-- `scripts/run_backtest.py` - À créer
-
-#### 3. Alertes Telegram
-**État** : Configuration prévue mais non implémentée.
-
-**Actions requises** :
-- [ ] Créer bot Telegram
-- [ ] Implémenter envoi alertes
-- [ ] Notifications pour: trades, daily summary, erreurs
-- [ ] Commandes: /status, /balance, /positions
-
-**Fichiers concernés** :
-- `src/monitoring/telegram_bot.py` - À créer
-
-### 🟡 Priorité Moyenne
-
-#### 4. Optimisation Performance Bot
-**État** : Améliorations appliquées le 2026-01-06.
-
-**Actions réalisées** :
-- [x] Retry avec backoff exponentiel (collector.py)
-- [x] Cache TA-Lib sur GitHub Actions
-- [x] Timeout explicite workflow (10 min)
-- [ ] Cache mémoire pour indicateurs
-- [ ] Monitoring temps d'exécution
-
-#### 5. Analyse Post-Trade
-**État** : Données collectées mais non analysées.
-
-**Actions possibles** :
-- [ ] Analyse win/loss par heure, jour, symbole
-- [ ] Identification patterns gagnants
-- [ ] Détection drift performance
-- [ ] Recommandations automatiques
-
-#### 6. Multi-Exchange Support
-**État** : Kraken uniquement.
-
-**Actions possibles** :
-- [ ] Ajouter Binance
-- [ ] Ajouter Bybit
-- [ ] Arbitrage cross-exchange
-
-### 🟢 Priorité Basse
-
-#### 7. Interface Mobile
-- [ ] Version responsive dashboard
-- [ ] App mobile (React Native)
-
-#### 8. Stratégies Multiples
-- [ ] Framework stratégie pluggable
-- [ ] Stratégie mean-reversion
-- [ ] Stratégie breakout
+- [x] **Critère de Kelly (Half-Kelly)** : Taille de position basée sur l'espérance mathématique de gain.
+- [ ] **Pyramiding** : Ajouter à une position gagnante (scale-in) si le trend se confirme + SL Break-even.
+- [ ] **Yield Farming** : (Exploratoire) Placer le capital "dormant" en staking flexible (si possible via API).
+- [ ] **Smart Re-entry** : Ré-entrer rapidement après une "mèche" de liquidation si le signal reste valide.
 
 ---
 
-## 📋 Prochaines Étapes Recommandées
+## 🎯 Priorités Stratégiques (Revisées)
 
-### Court Terme (1-2 semaines)
-1. **Collecter plus de données de trades** pour analyse
-2. **Implémenter alertes Telegram** pour monitoring à distance
-3. **Ajouter métriques dashboard** : temps en position, ratio gain/perte
+### 🔴 Priorité Immédiate : Le "Cerveau Financier"
+**Pourquoi ?** Pour qu'il arrête de trader "bêtement" et commence à gérer le capital comme un pro.
 
-### Moyen Terme (3-4 semaines)
-1. **Implémenter backtesting VectorBT**
-2. **Entraîner premier modèle XGBoost**
-3. **Comparer ML vs heuristiques en paper trading**
+1. **Implémenter `RiskManager` 2.0 (Kelly + Pyramiding)**
+   - Fichiers : `src/trading/risk_manager.py`
+   - Action : Remplacer sizing statique par dynamique.
 
-### Long Terme (2+ mois)
-1. **Auto-apprentissage continu**
-2. **Multi-exchange**
-3. **Stratégies additionnelles**
+2. **Créer le module `ActiveLearning`**
+   - Fichiers : `src/learning/performance.py`
+   - Action : Feedback loop qui lit la DB et update les configs.
+
+3. **Backtesting Rapide**
+   - Fichiers : `src/backtest/simple_runner.py`
+   - Action : Valider que le Kelly Criterion n'est pas trop agressif.
+
+### 🟡 Priorité Secondaire : Raffinement
+4. **Alertes Telegram Interactives** (pour valider les décisions "agressives" en temps réel).
+5. **Amélioration du Dashboard** (Voir les métriques d'apprentissage : "Je suis confiant sur SOL, méfiant sur XRP").
 
 ---
 
-## 🛡️ Points de Vigilance
+## 📋 Roadmap Technique
 
-> [!CAUTION]
-> **Risques Financiers**
-> - Le trading crypto comporte des risques de perte significatifs
-> - Ne jamais investir plus que ce que vous pouvez perdre
-> - Performances passées ≠ résultats futurs
+### Phase 1 : Intelligence Financière (Cette semaine)
+- [ ] Coder `SafetyChecks` pour le pyramiding (éviter le sur-levier).
+- [ ] Intégrer la formule de Kelly dans `calculate_position_size`.
+- [ ] Activer le "Breakeven Stop" automatique pour les positions pyramidées.
 
-> [!WARNING]
-> **Avant Passage Live**
-> - Minimum 1 mois paper trading profitable
-> - Sharpe ratio > 1.0
-> - Drawdown max < 15%
-> - Backtesting validé
+### Phase 2 : Conscience de Soi (Semaine pro)
+- [ ] Le bot doit savoir : "Je suis en Drawdown de 5%, je réduis mon risque de moitié".
+- [ ] Le bot doit savoir : "Le marché est en range, je désactive les stratégies de breakout".
 
-> [!IMPORTANT]
-> **Sécurité API Keys**
-> - Jamais commit dans Git
-> - Permissions minimales (trade only, no withdraw)
-> - IP whitelist activée sur exchange
-> - Secrets GitHub configurés
+---
+
+## 🛡️ Règle d'Or (Le Credo du Bot)
+> "Je suis agressif quand je gagne, paranoïaque quand je perds."
+> - Si un asset performe ➡️ J'augmente l'exposition (Pyramide).
+> - Si un asset sous-performe ➡️ Je le blackliste temporairement (Cooldown dynamique).
 
 ---
 
 ## 📚 Commandes Utiles
-
-### Lancement Local
+Same as before...
 ```powershell
-# Lancement complet (bot + dashboard)
 .\start_trading_app.bat
-
-# Dashboard seul
-streamlit run src\monitoring\dashboard.py
-
-# Bot seul
-python scripts\live_trade.py
 ```
-
-### Diagnostics
-```powershell
-# Vérifier positions
-python scripts\check_positions.py
-
-# Status complet
-python scripts\check_status.py
-
-# Diagnostic full
-python scripts\full_diagnostic.py
-
-# Test API Kraken
-python scripts\verify_kraken.py
-```
-
-### GitHub Actions
-```bash
-# Voir workflows récents
-gh run list --workflow=trading_bot.yml
-
-# Voir logs d'un run
-gh run view <run-id> --log
-
-# Déclencher manuellement
-gh workflow run trading_bot.yml
-```
-
 ---
-
-## 📊 Métriques de Suivi
-
-| Métrique | Objectif | Actuel |
-|----------|----------|--------|
-| Uptime GitHub Actions | >99% | À mesurer |
-| Trades/jour | >5 | À mesurer |
-| Win Rate | >50% | À mesurer |
-| Sharpe Ratio (paper) | >1.0 | À mesurer |
-| Max Drawdown | <15% | À mesurer |
-| Temps moyen en position | 1-48h | À mesurer |
-
----
-
-*Plan restructuré le 2026-01-06 - Version 3.0 (Suivi précis de l'état d'implémentation)*
+*Plan mis à jour le 2026-01-06 - Version "Directeur Financier AI"*

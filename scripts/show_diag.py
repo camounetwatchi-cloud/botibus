@@ -1,0 +1,11 @@
+import json
+d = json.load(open('diagnose_result.json'))
+print("Storage:", d["storage_type"])
+print("Balance:", d["balance"])
+print("Balance History:", d["balance_history_count"], "rows")
+print("Open Trades:", d["open_trades_count"])
+print("Closed Trades:", d["closed_trades_count"])
+print("All trades statuses:", d["all_trades_statuses"])
+print("All trades count:", d["all_trades_count"])
+print("Open trades columns:", d.get("open_trades_columns", []))
+print("Bot Status:", d["bot_status"])

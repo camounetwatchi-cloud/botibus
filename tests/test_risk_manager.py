@@ -142,8 +142,8 @@ class TestConfidenceBasedSizing:
         assert mult == settings.CONFIDENCE_MULTIPLIER_VERY_HIGH  # 1.2
     
     def test_below_threshold_no_trade(self):
-        """Below 30% confidence should return 0."""
-        mult = self.rm._get_confidence_multiplier(0.25)
+        """Below MIN_SIGNAL_CONFIDENCE (20%) should return 0."""
+        mult = self.rm._get_confidence_multiplier(0.15)  # 15% is below 20% threshold
         assert mult == 0
 
 

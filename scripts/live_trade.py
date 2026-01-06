@@ -28,6 +28,8 @@ from src.config.settings import settings
 from src.features.technical import TechnicalFeatures
 from src.ml.signal_generator import SignalGenerator, MLSignal
 from src.trading.risk_manager import RiskManager, RiskConfig
+from src.trading.fee_calculator import fee_calculator
+from src.learning.performance import PerformanceAnalyzer
 
 
 # Configure logging - ASCII only for Windows compatibility
@@ -57,6 +59,7 @@ class OptimizedTradingBot:
         self.storage = DataStorage()
         self.collector = DataCollector()
         self.signal_generator = SignalGenerator()
+        self.performance_analyzer = PerformanceAnalyzer(self.storage)
         
         # Check if we have API keys for live trading
         exchange_id = settings.ACTIVE_EXCHANGE
@@ -112,6 +115,9 @@ class OptimizedTradingBot:
         
         # Analysis cooldown (AGGRESSIVE: reduced for more frequent analysis)
         self.analysis_cooldown = timedelta(seconds=10)
+        
+        # Track last balance update for periodic history logging (every 1 hour)
+        self.last_balance_update = datetime.now()
         
         logger.info(f"Trading symbols: {self.symbols}")
     
@@ -299,7 +305,7 @@ class OptimizedTradingBot:
             await self.close_position(trade_id, exit_price, reason, pnl)
     
     async def close_position(self, trade_id: str, exit_price: float, reason: str, pnl: float):
-        """Close a position and update records."""
+        """Close a position and update records with all fees."""
         if trade_id not in self.open_positions:
             return
         
@@ -307,22 +313,41 @@ class OptimizedTradingBot:
         symbol = position['symbol']
         amount = position['amount']
         entry_price = position['entry_price']
+        entry_time = position.get('entry_time', datetime.now())
         
-        # Calculate fee
-        fee = exit_price * amount * 0.001  # 0.1% fee
-        net_pnl = pnl - fee
+        # Calculate all fees using FeeCalculator
+        fees = fee_calculator.calculate_all_fees_for_trade(
+            entry_price=entry_price,
+            exit_price=exit_price,
+            amount=amount,
+            entry_time=entry_time,
+            exit_time=datetime.now(),
+            is_margin=True
+        )
         
-        # Update trade record
+        # Gross PnL (before fees)
+        gross_pnl = pnl
+        
+        # Net PnL (after all fees)
+        net_pnl = gross_pnl - fees['total_fees']
+        
+        # Update trade record with comprehensive fee data
         trade_update = {
             "id": trade_id,
             "status": "closed",
             "exit_price": exit_price,
             "exit_time": pd.Timestamp.now(),
-            "pnl": net_pnl
+            "pnl": net_pnl,  # Keep backward compatibility
+            "gross_pnl": gross_pnl,
+            "net_pnl": net_pnl,
+            "entry_fee": fees['entry_fee'],
+            "exit_fee": fees['exit_fee'],
+            "rollover_fee": fees['rollover_fee'],
+            "total_fees": fees['total_fees']
         }
         self.storage.save_trade(trade_update)
         
-        # Update balance
+        # Update balance (use net PnL)
         self.free_balance += (amount * entry_price) + net_pnl
         self.used_balance -= (amount * entry_price)
         self.total_balance = self.free_balance + self.used_balance
@@ -342,8 +367,12 @@ class OptimizedTradingBot:
         status = "[WIN]" if net_pnl >= 0 else "[LOSS]"
         logger.info(
             f"{status} CLOSED {position['side'].upper()} {symbol} | "
-            f"Entry: ${entry_price:,.2f} -> Exit: ${exit_price:,.2f} | "
-            f"PnL: ${net_pnl:+,.2f} ({reason})"
+            f"Entry: ${entry_price:,.2f} -> Exit: ${exit_price:,.2f}"
+        )
+        logger.info(
+            f"   Gross: ${gross_pnl:+,.2f} | Fees: ${fees['total_fees']:.2f} "
+            f"(Entry: ${fees['entry_fee']:.2f}, Exit: ${fees['exit_fee']:.2f}, Rollover: ${fees['rollover_fee']:.2f}) | "
+            f"Net: ${net_pnl:+,.2f} ({reason})"
         )
     
     async def execute_signal(self, symbol: str, signal: MLSignal, current_price: float):
@@ -360,23 +389,35 @@ class OptimizedTradingBot:
         # Get ATR for dynamic TP calculation
         atr = getattr(signal, 'atr', 0) or self.atr_cache.get(symbol, 0)
         
-        # Calculate position size with dynamic TP
+        # Get Kelly fraction for intelligent position sizing
+        kelly_fraction = self.performance_analyzer.calculate_kelly_fraction(
+            symbol, 
+            lookback_trades=settings.KELLY_LOOKBACK_TRADES
+        )
+        
+        # Adjust confidence based on symbol performance history
+        adjusted_confidence = self.performance_analyzer.get_confidence_adjustment(
+            symbol, signal.confidence
+        )
+        
+        # Calculate position size with dynamic TP and Kelly sizing
         position_size, stop_loss, take_profit = self.risk_manager.calculate_position_size(
             balance=self.free_balance,
             price=current_price,
-            confidence=signal.confidence,
-            atr=atr
+            confidence=adjusted_confidence,
+            atr=atr,
+            kelly_fraction=kelly_fraction
         )
         
         if position_size <= 0:
             logger.info(f"[{symbol}] Position size too small")
             return
         
-        # Calculate trade value
+        # Calculate trade value and entry fees
         trade_value = position_size * current_price
-        fee = trade_value * 0.001  # 0.1% fee
+        entry_fees = fee_calculator.calculate_entry_fees(trade_value, is_margin=True)
         
-        # Create trade record
+        # Create trade record with entry fee
         trade_id = str(uuid.uuid4())[:8]
         side = signal.action.lower()
         
@@ -389,15 +430,22 @@ class OptimizedTradingBot:
             "entry_price": current_price,
             "amount": position_size,
             "entry_time": pd.Timestamp.now(),
-            "fee": fee
+            "fee": entry_fees['total'],  # Backward compat
+            "entry_fee": entry_fees['total'],
+            "exit_fee": 0.0,
+            "rollover_fee": 0.0,
+            "total_fees": entry_fees['total'],
+            "gross_pnl": 0.0,
+            "net_pnl": 0.0
         }
         
         # Save trade
         self.storage.save_trade(trade_data)
         
-        # Update balance
-        self.free_balance -= trade_value
+        # Update balance (deduct trade value AND entry fees from free balance)
+        self.free_balance -= (trade_value + entry_fees['total'])
         self.used_balance += trade_value
+        self.total_balance = self.free_balance + self.used_balance
         self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
         
         # Register with risk manager
@@ -414,6 +462,7 @@ class OptimizedTradingBot:
             'entry_time': datetime.now(),
             'stop_loss': stop_loss,
             'take_profit': take_profit,
+            'entry_fee': entry_fees['total'],
         }
         
         # Save cooldown to database for persistence across restarts
@@ -425,73 +474,251 @@ class OptimizedTradingBot:
         # Calculate TP percentage for logging
         tp_pct = ((take_profit - current_price) / current_price) * 100
         
+        # Log with Kelly info if used
+        kelly_info = f"Kelly: {kelly_fraction:.1%} | " if kelly_fraction > 0 else ""
         logger.info(
             f"[OPEN] {side.upper()} {symbol} | "
             f"Size: {position_size:.6f} @ ${current_price:,.2f} | "
-            f"Value: ${trade_value:,.2f} | Confidence: {signal.confidence:.0%}"
+            f"Value: ${trade_value:,.2f} | {kelly_info}Confidence: {adjusted_confidence:.0%}"
         )
-        logger.info(f"   Reasons: {', '.join(signal.reasons[:3])}")
+        logger.info(f"   Entry Fee: ${entry_fees['total']:.2f} | Reasons: {', '.join(signal.reasons[:3])}")
         logger.info(f"   SL: ${stop_loss:,.2f} (-2.5%) | TP: ${take_profit:,.2f} (+{tp_pct:.1f}%)")
     
     async def run_cycle(self):
-        """Run one trading cycle across all symbols with parallel analysis."""
+        """
+        Run one trading cycle with Arbitrage and Unlimited Positions logic.
+        
+        Steps:
+        1. Check Risk Limits (Daily loss, etc).
+        2. Manage Open Positions (SL/TP/Trailing).
+        3. Batch Analysis: Analyze ALL symbols to get current scores.
+        4. Natural Exits: Close positions that have turned to SELL signal.
+        5. Arbitrage & Entry:
+           - Sort new buying opportunities by confidence.
+           - If funds available -> BUY.
+           - If no funds -> Check if New_Signal is significantly better than Weakest_Position.
+           - If yes -> SWAP (Close weak, Open new).
+        """
         logger.debug("Starting trading cycle...")
         
-        # Check risk limits first
+        # --- 1. Risk Limits ---
         self.risk_manager.reset_daily_stats()
         risk_summary = self.risk_manager.get_risk_summary()
         
         if not risk_summary['can_trade']:
-            logger.warning("Trading paused due to risk limits")
+            logger.warning("Trading paused due to risk limits (Daily loss/trades reached)")
             return
         
-        # Check open positions for SL/TP/Trailing
+        # --- 2. Manage Open Positions (Hard Stops/TP) ---
         await self.check_open_positions()
         
-        # PARALLEL analysis of all symbols for faster execution
+        # --- 3. Batch Analysis ---
+        # We need fresh analysis for ALL symbols (both watchlist and current holdings)
+        # to compare their relative strength.
+        symbols_to_analyze = list(set(self.symbols + [p['symbol'] for p in self.open_positions.values()]))
+        
+        # PARALLEL analysis
         results = await asyncio.gather(*[
             self.fetch_and_analyze(symbol) 
-            for symbol in self.symbols
+            for symbol in symbols_to_analyze
         ], return_exceptions=True)
         
-        # Process results
-        signals_found = 0
+        # Organized results
+        analysis_map = {}  # symbol -> (price, signal)
+        
         successful_symbols = 0
         failed_symbols = []
         
-        for symbol, result in zip(self.symbols, results):
+        for symbol, result in zip(symbols_to_analyze, results):
             if isinstance(result, Exception):
                 failed_symbols.append(symbol)
                 continue
             
-            successful_symbols += 1
             price, signal = result
-            
-            if price is None:
+            if price is None or signal is None:
                 continue
+                
+            analysis_map[symbol] = (price, signal)
+            successful_symbols += 1
             
             # Log current state
-            logger.debug(f"[{symbol}] Price: ${price:,.2f}")
-            
-            # Execute if we have a strong signal
-            if signal and signal.is_actionable:
-                signals_found += 1
-                await self.execute_signal(symbol, signal, price)
-        
-        # Diagnostic log for failed symbols
+            logger.debug(f"[{symbol}] ${price:,.2f} | Signal: {signal.action} ({signal.confidence:.0%})")
+
         if failed_symbols:
-            logger.warning(f"Failed to analyze {len(failed_symbols)} symbols: {failed_symbols[:5]}{'...' if len(failed_symbols) > 5 else ''}")
+            logger.warning(f"Failed to analyze {len(failed_symbols)} symbols: {failed_symbols[:5]}")
+
+        # --- 4. Natural Exits (Signal flipped to SELL) ---
+        # Close positions that are no longer supported by strategy, regardless of PnL
+        current_holdings = list(self.open_positions.keys()) # Copy keys
+        for trade_id in current_holdings:
+            pos = self.open_positions[trade_id]
+            symbol = pos['symbol']
+            
+            if symbol in analysis_map:
+                price, signal = analysis_map[symbol]
+                # If signal is SELL or STRONG_SELL, close it standardly
+                if signal.action == "SELL":
+                    logger.info(f"[{symbol}] Natural Exit triggered by SELL signal")
+                    # Calculate approximate PnL for logging content
+                    entry = pos['entry_price']
+                    pnl = (price - entry) * pos['amount']
+                    await self.close_position(trade_id, price, "SIGNAL_EXIT", pnl)
+
+        # --- 5. Arbitrage & Entry Logic ---
+        
+        # Identify Candidates
+        # A. New Opportunities (Strong Buy/Buy, not currently held)
+        opportunities = []
+        # B. Existing Holdings (For potential swapping)
+        weakest_holdings = []
+        
+        held_symbols = {p['symbol'] for p in self.open_positions.values()}
+        
+        for symbol, (price, signal) in analysis_map.items():
+            if symbol not in held_symbols:
+                # Potential Entry (BUY or SHORT opportunity)
+                if signal.is_actionable:
+                    if signal.action == "BUY":
+                        opportunities.append({
+                            'symbol': symbol,
+                            'price': price,
+                            'signal': signal,
+                            'score': signal.confidence,
+                            'direction': 'buy'
+                        })
+                    elif signal.action == "SELL":
+                        # SHORT opportunity - margin trading allows shorting
+                        opportunities.append({
+                            'symbol': symbol,
+                            'price': price,
+                            'signal': signal,
+                            'score': signal.confidence,
+                            'direction': 'sell'  # Mark as short
+                        })
+            else:
+                # Existing Holding - track its score for comparison
+                # Find the trade_id for this symbol
+                trade_id = next((tid for tid, p in self.open_positions.items() if p['symbol'] == symbol), None)
+                if trade_id:
+                    weakest_holdings.append({
+                        'trade_id': trade_id,
+                        'symbol': symbol,
+                        'price': price,
+                        'score': signal.confidence
+                    })
+        
+        # Sort lists
+        # Best new opportunities first
+        opportunities.sort(key=lambda x: x['score'], reverse=True)
+        # Weakest holdings first
+        weakest_holdings.sort(key=lambda x: x['score'], reverse=False)
+        
+        # Account for swap friction: close + open = ~0.44% fee drag + slippage
+        # New signal must be significantly better to justify this cost
+        SWAP_THRESHOLD = 0.25  # Raised from 0.15 to account for double-fee friction
+        
+        # Iterate through best opportunities
+        for opp in opportunities:
+            symbol = opp['symbol']
+            signal = opp['signal']
+            price = opp['price']
+            
+            # Check if we can open trade simply (Capital check)
+            # We use total_balance check in RiskManager, but here we specifically want to know if we have FREE funds
+            # RiskManager.can_trade checks limits, but we removed position limit.
+            # We just need to check if we have enough cash.
+            
+            can_trade_risk, risk_reason = self.risk_manager.can_trade(symbol, self.total_balance)
+            
+            # Calculate position size to see if we have enough money
+            # (We need to DRY this logic, relying on risk_manager.calculate_position_size)
+            atr = getattr(signal, 'atr', 0) or self.atr_cache.get(symbol, 0)
+            
+            pos_size, _, _ = self.risk_manager.calculate_position_size(
+                balance=self.free_balance,
+                price=price,
+                confidence=signal.confidence,
+                atr=atr
+            )
+            
+            cost = pos_size * price
+            
+            if can_trade_risk and cost > 0:
+
+                # CASE A: We have funds -> Just Open
+                await self.execute_signal(symbol, signal, price)
+                # Update free balance available for next iteration in loop?
+                # execute_signal updates self.free_balance
+                continue
+            
+            elif "Daily" in risk_reason or "Cooldown" in risk_reason:
+                # Hard blocks from risk manager, skip
+                continue
+            
+            else:
+                # CASE B: Insufficient Funds -> ARBITRAGE CHECK
+                # Try to find a weak position to swap
+                
+                # If we have no holdings, we just can't trade (weird but possible if min_trade > free_balance)
+                if not weakest_holdings:
+                    continue
+                    
+                # Look at the weakest holding
+                victim = weakest_holdings[0]
+                
+                # Check metrics: Is New significantly better than Old?
+                score_diff = opp['score'] - victim['score']
+                
+                if score_diff > SWAP_THRESHOLD:
+                    logger.info(f"⚡ ARBITRAGE OPPORTUNITY: Swapping {victim['symbol']} ({victim['score']:.2f}) for {symbol} ({opp['score']:.2f}) | Diff: {score_diff:.2f}")
+                    
+                    # 1. Close Victim
+                    # Recalculate PnL
+                    victim_pos = self.open_positions[victim['trade_id']]
+                    pnl = (victim['price'] - victim_pos['entry_price']) * victim_pos['amount']
+                    if victim_pos['side'] == 'sell':
+                        pnl = -pnl
+                        
+                    await self.close_position(victim['trade_id'], victim['price'], "ARBITRAGE_SWAP", pnl)
+                    
+                    # Remove from local list so we don't try to close it again this cycle
+                    weakest_holdings.pop(0)
+                    
+                    # 2. Open New
+                    # Now we should have funds (updated in close_position)
+                    # We need to re-check risk/size because balance changed
+                     # Get ATR for dynamic TP calculation
+                    atr = getattr(signal, 'atr', 0) or self.atr_cache.get(symbol, 0)
+                    
+                    # Recalculate with new balance
+                    new_size, _, _ = self.risk_manager.calculate_position_size(
+                        balance=self.free_balance,
+                        price=price, 
+                        confidence=signal.confidence,
+                        atr=atr
+                    )
+                    
+                    if new_size * price >= settings.MIN_TRADE_VALUE:
+                        await self.execute_signal(symbol, signal, price)
+                    else:
+                        logger.warning(f"Swap executed but insufficient funds for new trade? Free: {self.free_balance}")
+                else:
+                    # If this opportunity isn't better than our WORST holding, 
+                    # it definitely isn't better than the others.
+                    # And since opportunities are sorted best-first, we can likely stop trying to swap?
+                    # No, maybe the NEXT opportunity is smaller but we still don't have funds.
+                    # But we are iterating on opportunities.
+                    logger.debug(f"Skipping swap: {symbol} ({opp['score']:.2f}) not enough > {victim['symbol']} ({victim['score']:.2f})")
         
         # Summary log
         logger.info(
             f"[BALANCE] Total: ${self.total_balance:,.2f} | "
             f"Free: ${self.free_balance:,.2f} | "
-            f"Positions: {len(self.open_positions)}/{self.risk_manager.config.max_open_positions} | "
-            f"Analyzed: {successful_symbols}/{len(self.symbols)} | "
-            f"Signals: {signals_found} | Daily Trades: {risk_summary['daily_trades']}"
+            f"Positions: {len(self.open_positions)} | "
+            f"Active Analysis: {successful_symbols} symbols"
         )
         
-        # Update bot status heartbeat for cloud monitoring
+        # Update bot status heartbeat
         mode = "paper" if not self.is_live else "live"
         self.storage.update_bot_status(
             status="running",
@@ -499,6 +726,11 @@ class OptimizedTradingBot:
             exchange=settings.ACTIVE_EXCHANGE,
             mode=mode
         )
+        
+        # Periodic balance snapshot
+        if datetime.now() - self.last_balance_update > timedelta(hours=1):
+            self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
+            self.last_balance_update = datetime.now()
     
     async def run(self):
         """Main bot loop."""
@@ -546,3 +778,12 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        import traceback
+        with open("crash_log.txt", "w") as f:
+            f.write(f"CRASH TIME: {datetime.now()}\n")
+            f.write(traceback.format_exc())
+        print("CRASH DETECTED! Saved to crash_log.txt")
+        # Keep window open for a moment
+        import time
+        time.sleep(10)

@@ -119,9 +119,9 @@ class RiskManager:
         if self.state.daily_trades >= self.config.max_daily_trades:
             return False, f"Max daily trades reached ({self.config.max_daily_trades})"
         
-        # Check max open positions
-        if len(self.state.open_positions) >= self.config.max_open_positions:
-            return False, f"Max open positions reached ({self.config.max_open_positions})"
+        # Check max open positions - REMOVED for unlimited positions (constrained by capital only)
+        # if len(self.state.open_positions) >= self.config.max_open_positions:
+        #    return False, f"Max open positions reached ({self.config.max_open_positions})"
         
         # Check position for this symbol
         symbol_positions = sum(1 for s in self.state.open_positions if s == symbol)
@@ -155,10 +155,13 @@ class RiskManager:
         price: float, 
         confidence: float,
         volatility_factor: float = 1.0,
-        atr: float = 0.0
+        atr: float = 0.0,
+        kelly_fraction: float = 0.0
     ) -> Tuple[float, float, float]:
         """
         Calculate position size with dynamic risk management.
+        
+        Supports Kelly Criterion-based sizing when kelly_fraction is provided.
         
         Args:
             balance: Available balance
@@ -166,25 +169,44 @@ class RiskManager:
             confidence: Signal confidence 0-1
             volatility_factor: Multiplier for high volatility (reduce size)
             atr: Average True Range for dynamic TP calculation
+            kelly_fraction: Optional Kelly fraction from PerformanceAnalyzer (0-1)
             
         Returns:
             Tuple of (position_size, stop_loss_price, take_profit_price)
         """
         if balance < self.config.min_trade_value:
             return 0, 0, 0
-            
-        # Base position from risk per trade
-        risk_amount = balance * self.config.risk_per_trade_percent
-        position_value = risk_amount / self.config.default_stop_loss
         
-        # Confidence-based position sizing (tiered multipliers)
+        # Get confidence multiplier first (applies to both methods)
         confidence_multiplier = self._get_confidence_multiplier(confidence)
         if confidence_multiplier == 0:
             return 0, 0, 0  # Below minimum confidence
         
-        position_value *= confidence_multiplier
+        # Position sizing: Kelly-based OR traditional risk-based
+        if kelly_fraction > 0 and settings.USE_KELLY_SIZING:
+            # KELLY-BASED SIZING
+            # Kelly fraction already incorporates win rate and risk:reward
+            # It represents the optimal % of bankroll to risk
+            position_value = balance * kelly_fraction
+            
+            # Still apply confidence multiplier (but gentler - Kelly already factors edge)
+            # Use square root to dampen the multiplier effect on Kelly
+            kelly_confidence_mult = 1.0 + (confidence_multiplier - 1.0) * 0.5
+            position_value *= kelly_confidence_mult
+            
+            logger.debug(f"Kelly sizing: fraction={kelly_fraction:.2%}, "
+                        f"base={balance * kelly_fraction:.2f}, "
+                        f"post-confidence={position_value:.2f}")
+        else:
+            # TRADITIONAL RISK-BASED SIZING
+            # Base position from risk per trade
+            risk_amount = balance * self.config.risk_per_trade_percent
+            position_value = risk_amount / self.config.default_stop_loss
+            
+            # Apply full confidence multiplier
+            position_value *= confidence_multiplier
         
-        # Adjust for volatility
+        # Adjust for volatility (applies to both methods)
         position_value *= (1 / max(volatility_factor, 0.5))
         
         # Apply max position constraint
