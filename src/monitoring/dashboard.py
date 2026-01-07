@@ -560,19 +560,27 @@ def render_dashboard(storage: DataStorage, balance_info: dict, open_trades: pd.D
 def render_trade_history(all_trades: pd.DataFrame) -> None:
     """
     Renders the trade history page with filters and export options.
+    
+    NOTE: Strictly shows COMPLETED trades only. Open trades are on the main dashboard.
 
     Args:
-        all_trades (pd.DataFrame): DataFrame of all trades (open + closed).
+        all_trades (pd.DataFrame): DataFrame of trades (will be filtered to closed only).
     """
-    st.subheader("📜 Complete Trade History")
+    st.subheader("📜 Completed Trade History")
+    
+    # FILTER: strictly closed trades
+    if not all_trades.empty and 'status' in all_trades.columns:
+        history_trades = all_trades[all_trades['status'] == 'closed'].copy()
+    else:
+        history_trades = pd.DataFrame()
     
     # Filters
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
-    # Get unique symbols from trades
+    # Get unique symbols from closed trades
     available_symbols = ["All"]
-    if not all_trades.empty and 'symbol' in all_trades.columns:
-        available_symbols += all_trades['symbol'].unique().tolist()
+    if not history_trades.empty and 'symbol' in history_trades.columns:
+        available_symbols += history_trades['symbol'].unique().tolist()
     
     with col1:
         symbol_filter = st.multiselect("Filter by Symbol", 
@@ -583,34 +591,26 @@ def render_trade_history(all_trades: pd.DataFrame) -> None:
                                     options=["All", "buy", "sell"],
                                     default=["All"])
     with col3:
-        status_filter = st.multiselect("Filter by Status",
-                                       options=["All", "open", "closed"],
-                                       default=["All"])
-    with col4:
         pnl_filter = st.selectbox("Filter by Result", 
-                                 options=["All", "Profitable", "Loss", "In Progress"])
+                                 options=["All", "Profitable", "Loss"])
     
-    if not all_trades.empty:
-        filtered_trades = all_trades.copy()
+    if not history_trades.empty:
+        filtered_trades = history_trades.copy()
         
         # Apply filters
         if "All" not in symbol_filter:
             filtered_trades = filtered_trades[filtered_trades['symbol'].isin(symbol_filter)]
         if "All" not in side_filter:
             filtered_trades = filtered_trades[filtered_trades['side'].isin(side_filter)]
-        if "All" not in status_filter:
-            filtered_trades = filtered_trades[filtered_trades['status'].isin(status_filter)]
+            
         if pnl_filter == "Profitable":
             filtered_trades = filtered_trades[filtered_trades['pnl'] > 0]
         elif pnl_filter == "Loss":
             filtered_trades = filtered_trades[filtered_trades['pnl'] < 0]
-        elif pnl_filter == "In Progress":
-            filtered_trades = filtered_trades[filtered_trades['status'] == 'open']
         
         # Add summary stats
-        open_count = len(filtered_trades[filtered_trades['status'] == 'open'])
-        closed_count = len(filtered_trades[filtered_trades['status'] == 'closed'])
-        st.info(f"📊 Showing {len(filtered_trades)} trades ({open_count} open, {closed_count} closed)")
+        closed_count = len(filtered_trades)
+        st.info(f"📊 Showing {closed_count} completed trades")
         
         # Display with better formatting - include fee columns if available
         display_cols = ['symbol', 'side', 'status', 'entry_price', 'exit_price', 'amount']
@@ -619,9 +619,13 @@ def render_trade_history(all_trades: pd.DataFrame) -> None:
         if 'total_fees' in filtered_trades.columns:
             display_cols.extend(['gross_pnl', 'total_fees', 'net_pnl'])
         else:
-            display_cols.append('pnl')
+            # Fallback if specific columns missing
+            cols_to_add = []
+            if 'pnl' in filtered_trades.columns: cols_to_add.append('pnl')
+            display_cols.extend(cols_to_add)
         
         display_cols.extend(['entry_time', 'exit_time'])
+        # Ensure we only ask for columns that actually exist
         available_cols = [c for c in display_cols if c in filtered_trades.columns]
         
         st.dataframe(
@@ -647,7 +651,7 @@ def render_trade_history(all_trades: pd.DataFrame) -> None:
             mime="text/csv"
         )
     else:
-        st.info("No trade history available yet.")
+        st.info("No completed trades found.")
 
 
 def render_analytics(closed_trades: pd.DataFrame) -> None:

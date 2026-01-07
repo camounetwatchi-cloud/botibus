@@ -31,7 +31,7 @@ class TradeExecutor:
 
         self.exchange = getattr(ccxt, exchange_id)(config)
         
-    def create_order(self, symbol: str, type: str, side: str, amount: float, price: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    async def create_order(self, symbol: str, type: str, side: str, amount: float, price: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         Creates a new order on the exchange.
 
@@ -45,8 +45,13 @@ class TradeExecutor:
         Returns:
             Optional[Dict[str, Any]]: The order response from the exchange, or None if failed.
         """
+        import asyncio
         try:
-            order = self.exchange.create_order(symbol, type, side, amount, price)
+            # Run blocking ccxt call in a separate thread
+            order = await asyncio.to_thread(
+                self.exchange.create_order, 
+                symbol, type, side, amount, price
+            )
             logger.info(f"Order created: {order}")
             return order
         except Exception as e:

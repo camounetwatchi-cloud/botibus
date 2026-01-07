@@ -18,7 +18,7 @@ class DataCollector:
         self.exchange_id = exchange_id or settings.ACTIVE_EXCHANGE
         self.exchange = getattr(ccxt, self.exchange_id)()
 
-    async def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int = 1000) -> pd.DataFrame:
+    async def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int = 50) -> pd.DataFrame:
         """Fetch historical OHLCV data with retry logic."""
         for attempt in range(self.MAX_RETRIES):
             try:

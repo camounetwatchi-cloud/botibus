@@ -3,6 +3,7 @@ ML Signal Generator - Ensemble of Technical and ML-based signals.
 
 Combines multiple signal sources to generate high-confidence trading signals.
 """
+import json
 import numpy as np
 import pandas as pd
 from typing import Dict, Optional, Tuple, List
@@ -58,15 +59,33 @@ class SignalGenerator:
         """
         self.model = None
         self.model_loaded = False
+        self.feature_columns = None
         
-        if model_path and Path(model_path).exists():
+        # Default model paths
+        models_dir = Path(__file__).parent / "models"
+        default_model_path = models_dir / "xgb_model.pkl"
+        default_features_path = models_dir / "feature_columns.json"
+        
+        # Determine which model path to use
+        path_to_load = Path(model_path) if model_path else default_model_path
+        features_to_load = default_features_path
+        
+        if path_to_load.exists():
             try:
-                with open(model_path, 'rb') as f:
+                with open(path_to_load, 'rb') as f:
                     self.model = pickle.load(f)
                 self.model_loaded = True
-                logger.info(f"Loaded ML model from {model_path}")
+                logger.info(f"✅ XGBoost model loaded from {path_to_load}")
+                
+                # Load feature columns
+                if features_to_load.exists():
+                    with open(features_to_load, 'r') as f:
+                        self.feature_columns = json.load(f)
+                    logger.info(f"   Using {len(self.feature_columns)} features")
             except Exception as e:
                 logger.warning(f"Could not load ML model: {e}")
+        else:
+            logger.info("ℹ️ No trained XGBoost model found, using heuristics")
     
     def generate(self, df: pd.DataFrame, symbol: str = "") -> MLSignal:
         """
@@ -232,28 +251,36 @@ class SignalGenerator:
         return np.clip(score / 2.5, -1, 1), reasons
     
     def _calculate_ml_score(self, df: pd.DataFrame) -> Tuple[float, str]:
-        """Calculate score from ML model prediction."""
+        """Calculate score from ML model prediction (binary classification)."""
         if not self.model_loaded or self.model is None:
             # Fallback: use simplified heuristic when no model
             return self._heuristic_ml_score(df)
         
         try:
             # Prepare features for model
-            features = self._prepare_features(df)
+            features_df = self._prepare_features(df)
             
-            # Get prediction probabilities
-            proba = self.model.predict_proba(features.reshape(1, -1))[0]
+            if features_df is None:
+                return self._heuristic_ml_score(df)
             
-            # Classes: 0=HOLD, 1=BUY, 2=SELL
-            buy_prob = proba[1] if len(proba) > 1 else 0.33
-            sell_prob = proba[2] if len(proba) > 2 else 0.33
+            # Get prediction probability for positive class (BUY)
+            # Model is binary: 0 = no signal, 1 = BUY opportunity
+            proba = self.model.predict_proba(features_df)[0]
+            buy_prob = proba[1]  # Probability of class 1 (BUY)
             
-            score = buy_prob - sell_prob  # Range: [-1, 1]
+            # Convert probability [0, 1] to score [-1, 1]
+            # prob > 0.5 means BUY, prob < 0.5 means SELL/HOLD
+            score = (buy_prob - 0.5) * 2
             
             reason = ""
-            if abs(score) >= 0.3:
-                direction = "bullish" if score > 0 else "bearish"
-                reason = f"ML model {direction} signal ({abs(score):.0%})"
+            if buy_prob >= 0.65:
+                reason = f"ML: Strong BUY signal ({buy_prob:.0%})"
+            elif buy_prob >= 0.55:
+                reason = f"ML: Moderate BUY signal ({buy_prob:.0%})"
+            elif buy_prob <= 0.35:
+                reason = f"ML: SELL signal ({buy_prob:.0%})"
+            elif buy_prob <= 0.45:
+                reason = f"ML: Weak SELL signal ({buy_prob:.0%})"
             
             return score, reason
             
@@ -363,23 +390,39 @@ class SignalGenerator:
         
         return np.clip(score, -1, 1), reason
     
-    def _prepare_features(self, df: pd.DataFrame) -> np.ndarray:
-        """Prepare feature vector for ML model."""
-        latest = df.iloc[-1]
+    def _prepare_features(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """
+        Prepare feature DataFrame for ML model.
         
-        # Standard feature set matching model training
-        features = [
-            latest.get('RSI_14', 50) / 100,  # Normalize 0-1
-            latest.get('MACDh_12_26_9', 0),
-            latest.get('STOCHk_14_3_3', 50) / 100,
-            latest.get('ATRr_14', 0),
-            # Add more features as needed
-        ]
+        Uses the same feature columns that were used during training.
+        """
+        if self.feature_columns is None:
+            logger.warning("No feature columns loaded, cannot prepare features")
+            return None
         
-        # Fill NaN with neutral values
-        features = [0.5 if pd.isna(f) else f for f in features]
+        latest = df.iloc[[-1]]  # Get last row as DataFrame
         
-        return np.array(features)
+        # Select only the columns used during training
+        available_cols = [c for c in self.feature_columns if c in latest.columns]
+        
+        if len(available_cols) < len(self.feature_columns) * 0.5:
+            logger.warning(f"Missing too many features: {len(available_cols)}/{len(self.feature_columns)}")
+            return None
+        
+        # Create feature DataFrame with expected columns
+        features = pd.DataFrame(columns=self.feature_columns)
+        
+        for col in self.feature_columns:
+            if col in latest.columns:
+                features[col] = latest[col].values
+            else:
+                # Fill missing with 0
+                features[col] = 0
+        
+        # Replace NaN with 0
+        features = features.fillna(0)
+        
+        return features
 
 
 def create_signal_generator(model_path: Optional[str] = None) -> SignalGenerator:

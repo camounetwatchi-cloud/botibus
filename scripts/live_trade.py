@@ -30,6 +30,8 @@ from src.ml.strategy_orchestrator import StrategyOrchestrator, OrchestratedSigna
 from src.trading.risk_manager import RiskManager, RiskConfig
 from src.trading.fee_calculator import fee_calculator
 from src.learning.performance import PerformanceAnalyzer
+from src.learning.auto_learner import AutoLearner
+from src.monitoring.telegram_notifier import TelegramNotifier
 
 
 # Configure logging - ASCII only for Windows compatibility
@@ -83,6 +85,12 @@ class OptimizedTradingBot:
             max_daily_loss_percent=settings.MAX_DAILY_LOSS,
             cooldown_minutes=settings.COOLDOWN_MINUTES
         ))
+        
+        # Initialize Telegram notifier
+        self.notifier = TelegramNotifier()
+        
+        # Initialize auto-learner (for confidence adjustments and blacklist)
+        self.auto_learner = AutoLearner(self.storage)
             
         self.symbols = settings.SYMBOLS
 
@@ -119,6 +127,9 @@ class OptimizedTradingBot:
         # Track last balance update for periodic history logging (every 1 hour)
         self.last_balance_update = datetime.now()
         
+        # Track last auto-learning run
+        self.last_learning_run = datetime.now()
+        
         logger.info(f"Trading symbols: {self.symbols}")
     
     async def initialize(self):
@@ -126,7 +137,7 @@ class OptimizedTradingBot:
         logger.info("[INIT] Initializing bot with historical data...")
         
         # Update balance in DB
-        self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
+        await asyncio.to_thread(self.storage.update_balance, self.total_balance, self.free_balance, self.used_balance)
         
         # Load open positions from DB
         open_trades = self.storage.get_trades(status="open")
@@ -345,13 +356,13 @@ class OptimizedTradingBot:
             "rollover_fee": fees['rollover_fee'],
             "total_fees": fees['total_fees']
         }
-        self.storage.save_trade(trade_update)
+        await asyncio.to_thread(self.storage.save_trade, trade_update)
         
         # Update balance (use net PnL)
         self.free_balance += (amount * entry_price) + net_pnl
         self.used_balance -= (amount * entry_price)
         self.total_balance = self.free_balance + self.used_balance
-        self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
+        await asyncio.to_thread(self.storage.update_balance, self.total_balance, self.free_balance, self.used_balance)
         
         # Update risk manager
         self.risk_manager.close_trade(trade_id, net_pnl)
@@ -446,13 +457,13 @@ class OptimizedTradingBot:
         }
         
         # Save trade
-        self.storage.save_trade(trade_data)
+        await asyncio.to_thread(self.storage.save_trade, trade_data)
         
         # Update balance (deduct trade value AND entry fees from free balance)
         self.free_balance -= (trade_value + entry_fees['total'])
         self.used_balance += trade_value
         self.total_balance = self.free_balance + self.used_balance
-        self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
+        await asyncio.to_thread(self.storage.update_balance, self.total_balance, self.free_balance, self.used_balance)
         
         # Register with risk manager
         self.risk_manager.register_trade(
@@ -472,7 +483,7 @@ class OptimizedTradingBot:
         }
         
         # Save cooldown to database for persistence across restarts
-        self.storage.save_cooldown(symbol, datetime.now())
+        await asyncio.to_thread(self.storage.save_cooldown, symbol, datetime.now())
         
         # Initialize peak price tracking
         self.position_peaks[trade_id] = current_price
@@ -557,7 +568,6 @@ class OptimizedTradingBot:
             return
         
         # --- 2. Manage Open Positions (Hard Stops/TP) ---
-        await self.check_open_positions()
         
         # --- 3. Batch Analysis ---
         # We need fresh analysis for ALL symbols (both watchlist and current holdings)
@@ -593,6 +603,11 @@ class OptimizedTradingBot:
 
         if failed_symbols:
             logger.warning(f"Failed to analyze {len(failed_symbols)} symbols: {failed_symbols[:5]}")
+
+        # --- 3b. Manage Open Positions (Hard Stops/TP) ---
+        # Now that we have fresh prices in self.price_cache (updated by fetch_and_analyze),
+        # we check safety exits BEFORE strategic exits.
+        await self.check_open_positions()
 
         # --- 4. Natural Exits (Signal flipped to SELL) ---
         # Close positions that are no longer supported by strategy, regardless of PnL
@@ -774,7 +789,8 @@ class OptimizedTradingBot:
         
         # Update bot status heartbeat
         mode = "paper" if not self.is_live else "live"
-        self.storage.update_bot_status(
+        await asyncio.to_thread(
+            self.storage.update_bot_status,
             status="running",
             open_positions=len(self.open_positions),
             exchange=settings.ACTIVE_EXCHANGE,
@@ -783,8 +799,31 @@ class OptimizedTradingBot:
         
         # Periodic balance snapshot
         if datetime.now() - self.last_balance_update > timedelta(hours=1):
-            self.storage.update_balance(self.total_balance, self.free_balance, self.used_balance)
+            await asyncio.to_thread(self.storage.update_balance, self.total_balance, self.free_balance, self.used_balance)
             self.last_balance_update = datetime.now()
+            
+        # --- 6. Daily Auto-Learning (Every 24h) ---
+        if datetime.now() - self.last_learning_run > timedelta(hours=24):
+            logger.info("🧠 Triggering Daily Auto-Learning...")
+            try:
+                # Run analysis
+                adjustments = await asyncio.to_thread(self.auto_learner.run_daily_analysis)
+                
+                # Send report via Telegram
+                report = self.auto_learner.get_insights_report()
+                await self.notifier._send(f"<pre>{report}</pre>", parse_mode="HTML")
+                
+                # Notify specifically about blacklist/confidence changes
+                if adjustments.get('blacklist_changes'):
+                    await self.notifier.alert_critical(
+                        f"Auto-Learner: Blacklist updated!\n{adjustments['blacklist_changes']}", 
+                        alert_type='warning'
+                    )
+                
+                self.last_learning_run = datetime.now()
+                
+            except Exception as e:
+                logger.error(f"Auto-learning failed: {e}")
     
     async def run(self):
         """Main bot loop."""
