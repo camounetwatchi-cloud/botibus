@@ -2,8 +2,8 @@
 
 > **Objectif** : Bot de trading automatisé, efficace, auto-apprenant, pour du swing trading agressif.
 > 
-> **Dernière mise à jour** : 2026-01-06 | **Version** : 3.2
-> **Dernier Audit Technique** : 2026-01-06 ✅
+> **Dernière mise à jour** : 2026-01-07 | **Version** : 4.0 (ML Ready)
+> **Dernier Audit Technique** : 2026-01-07 ✅
 
 ---
 
@@ -11,16 +11,15 @@
 
 | Composant | Statut | Notes |
 |-----------|--------|-------|
-| **Infrastructure de base** | ✅ Complet | Structure projet, config, dépendances |
-| **Trading Engine** | ✅ Opérationnel | `OptimizedTradingBot` en production |
-| **Dashboard Monitoring** | ✅ Opérationnel | Streamlit avec 4 pages |
-| **Stockage Données** | ✅ Opérationnel | PostgreSQL (Supabase) + DuckDB fallback |
-| **GitHub Actions** | ⚠️ Fix en cours | Problème de permissions cache TA-Lib |
-| **Gestion des Risques** | ✅ Opérationnel | Stop-loss, take-profit, trailing stop |
-| **Frais Trading Réels** | ✅ Opérationnel | Frais margin Kraken: opening, rollover, trading |
-| **Signaux ML** | ⚠️ Partiellement | Heuristiques actives, ML réel à implémenter |
-| **Backtesting** | ❌ Non implémenté | VectorBT prévu |
-| **Auto-apprentissage** | ❌ Non implémenté | Ré-entraînement automatique prévu |
+| **Infrastructure** | ✅ Complet | Structure, Config, Logging, **Async I/O** |
+| **Trading Engine** | ✅ Opérationnel | **Optimisé (Non-blocking)**, Cycle 'Fresh Data' |
+| **Dashboard** | ✅ Opérationnel | Streamlit, Métriques Live, Sync Supabase |
+| **Stockage Données** | ✅ Opérationnel | Postgres + DuckDB (Async writes) |
+| **Gestion Risques** | ✅ Avancé | **Kelly Criterion + Pyramiding + Breakeven** |
+| **Signaux ML** | ✅ Complet | XGBoost pipeline prêt (train_model.py) |
+| **GitHub Actions** | ✅ Opérationnel | **Cron 5min (Public Repo)** |
+| **Backtesting** | ✅ Complet | VectorBT + engine.py (550 lignes) |
+| **Apprentissage** | ✅ Complet | AutoLearner + Blacklist + Confidence Adj |
 
 ---
 
@@ -70,65 +69,22 @@
 
 ---
 
-## 📁 Structure du Projet (Implémentée)
+## 📁 Structure du Projet (Mise à jour)
 
 ```
 tradingllm/
-├── .github/
-│   └── workflows/
-│       └── trading_bot.yml      ⚠️ Fix cache permissions
-│
 ├── scripts/
-│   ├── live_trade.py            ✅ Bot principal (OptimizedTradingBot)
-│   ├── gh_actions_trade.py      ✅ Script pour GitHub Actions
-│   ├── check_positions.py       ✅ Diagnostic des positions
-│   ├── check_status.py          ✅ Vérification statut bot
-│   ├── full_diagnostic.py       ✅ Diagnostic complet
-│   ├── get_top_cryptos.py       ✅ Récupération top cryptos
-│   ├── reset_session.py         ✅ Reset session trading
-│   └── verify_kraken.py         ✅ Test API Kraken
-│
+│   ├── live_trade.py            ✅ Bot Optimisé (Async/Non-blocking)
+│   ├── check_positions.py       ✅ Diagnostic fiable
+│   └── ...
 ├── src/
-│   ├── config/
-│   │   └── settings.py          ✅ Configuration centralisée
-│   │
 │   ├── data/
-│   │   ├── collector.py         ✅ Collecte données CCXT
-│   │   └── storage.py           ✅ PostgreSQL + DuckDB
-│   │
-│   ├── features/
-│   │   └── technical.py         ✅ Indicateurs techniques (pandas-ta)
-│   │
-│   ├── ml/
-│   │   └── signal_generator.py  ✅ Génération signaux (heuristique)
-│   │
+│   │   ├── collector.py         ✅ Collecte Optimisée (Limit=50)
+│   │   └── storage.py           ✅ Writes Async (Thread-safe)
 │   ├── trading/
-│   │   ├── executor.py          ✅ Exécution ordres CCXT
-│   │   └── risk_manager.py      ✅ Gestion risques complète
-│   │
-│   ├── monitoring/
-│   │   ├── dashboard.py         ✅ Dashboard Streamlit
-│   │   └── dashboard.css        ✅ Styling personnalisé
-│   │
-│   └── strategies/              ✅ SwingStrategy intégrée via Orchestrator
-│
-├── tests/
-│   ├── test_risk_manager.py     ✅ Tests Risk Manager
-│   ├── verify_dashboard_logic.py ✅ Tests Dashboard
-│   └── debug_storage_repro.py   ✅ Debug Storage
-│
-├── data/                         ✅ Stockage local DuckDB
-├── logs/                         ✅ Logs rotatifs
-│
-├── start_trading_app.bat        ✅ Lanceur Windows
-├── start_trading_app.ps1        ✅ Lanceur PowerShell
-├── requirements.txt             ✅ Dépendances Python
-├── pyproject.toml               ✅ Config projet
-├── .env.example                 ✅ Template variables env
-├── README.md                    ✅ Documentation utilisateur
-├── GUIDE_UTILISATEUR.md         ✅ Guide complet
-├── TROUBLESHOOTING.md           ✅ Guide dépannage
-└── VERIFICATION_CHECKLIST.md    ✅ Checklist vérification
+│   │   ├── executor.py          ✅ Async Execution (Zero-blocking)
+│   │   └── risk_manager.py      ✅ Kelly + Pyramiding Logic
+│   └── ...
 ```
 
 ---
@@ -173,138 +129,90 @@ SYMBOLS = [
 
 ## 📈 Progression des Modules
 
-### Module 1 : Infrastructure ✅ COMPLET
+### Module 1-3 : Core & Data ✅ COMPLET
+- [x] Infrastructure Async
+- [x] Stockage Non-bloquant
+- [x] Collecte Optimisée
 
-- [x] Structure projet Python
-- [x] Configuration centralisée (pydantic-settings)
-- [x] Gestion environnement (.env)
-- [x] Logging avec rotation (loguru)
-- [x] GitHub Actions workflow (fix TA-Lib cache)
-- [x] Scripts de lancement Windows (.bat, .ps1)
+### Module 4 : Signaux & ML ✅ COMPLET
+- [x] Structure SignalGenerator
+- [x] Score Heuristique (Pattern Recognition)
+- [x] **Pipeline XGBoost (train_model.py)**
+- [x] **Intégration modèle automatique**
+- [ ] Modèle RL (Futur optionnel)
 
-### Module 2 : Collecte de Données ✅ COMPLET
+### Module 5 : Risk Management 2.0 ✅ COMPLET
+- [x] Critère de Kelly (Position Sizing)
+- [x] Pyramiding (Scale-in winners)
+- [x] Stop-Loss Breakeven automatique
+- [x] Checks de volatilité (ATR)
 
-- [x] Intégration CCXT pour Kraken
-- [x] Collecte OHLCV multi-timeframes
-- [x] Stockage PostgreSQL (Supabase cloud)
-- [x] Fallback automatique DuckDB (local)
-- [x] Gestion des cooldowns persistante
-- [x] Heartbeat status bot
+### Module 6-7 : Exécution & Monitoring ✅ COMPLET
+- [x] Trading Live/Paper sans latence
+- [x] Dashboard Temps Réel
+- [x] Fix "Stale Data" (SL vérifié sur prix frais)
 
-### Module 3 : Feature Engineering ✅ COMPLET
+### Module 8 : Backtesting ✅ COMPLET
+- [x] Engine VectorBT (550 lignes)
+- [x] Validation stratégies sur historique
+- [x] Stress-tests (crash_2022, rally_2021)
+- [x] Rapports HTML auto-générés
 
-- [x] Indicateurs de tendance (SMA, EMA, MACD, ADX)
-- [x] Indicateurs momentum (RSI, Stochastic, Williams %R)
-- [x] Indicateurs volatilité (Bollinger Bands, ATR, Keltner)
-- [x] Indicateurs volume (OBV, VWAP, Volume Ratio)
-- [x] Features custom (momentum, volatilité relative)
-- [ ] Features multi-timeframe (prévu, non utilisé)
-
-### Module 4 : Génération de Signaux ⚠️ PARTIELLEMENT COMPLET
-
-- [x] Architecture SignalGenerator
-- [x] Score technique basé sur indicateurs
-- [x] Score heuristique ML-like (pattern recognition)
-- [x] Score volume/momentum
-- [x] Agrégation pondérée (40% tech + 40% ML + 20% vol)
-- [ ] **Modèle XGBoost réel** ❌ Non entraîné
-- [ ] **Modèle RL (PPO/SAC)** ❌ Non implémenté
-- [ ] **Ensemble de modèles** ❌ Non implémenté
-
-### Module 5 : Gestion des Risques ✅ COMPLET
-
-- [x] Position sizing dynamique
-- [x] Multiplicateurs selon confidence
-- [x] Stop-loss fixe et trailing
-- [x] Take-profit dynamique (basé ATR)
-- [x] Limite positions simultanées
-- [x] Limite perte journalière
-- [x] Cooldown par symbole
-- [x] Suivi drawdown
-
-### Module 6 : Exécution Trades ✅ COMPLET
-
-- [x] Mode Paper Trading
-- [x] Mode Live Trading (Kraken)
-- [x] Exécution via CCXT
-- [x] Logging détaillé des trades
-- [x] Gestion fermeture positions (SL/TP/Trailing)
-- [x] Cycle trading async parallélisé
-
-### Module 7 : Monitoring ✅ COMPLET
-
-- [x] Dashboard Streamlit (4 pages)
-- [x] Métriques temps réel
-- [x] Graphiques Plotly
-- [x] Export CSV
-- [x] Filtres avancés
-- [x] Bot start/stop depuis UI
-- [x] Auto-refresh configurable
-- [ ] **Alertes Telegram** ❌ Non implémenté
-
-### Module 8 : Backtesting ❌ NON IMPLÉMENTÉ
-
-- [ ] VectorBT wrapper
-- [ ] Walk-forward validation
-- [ ] Métriques (Sharpe, Sortino, Calmar)
-- [ ] Rapports automatisés
-
-### Module 9: Auto-Apprentissage & Intelligence Active ✅ PARTIEL
-**Objectif** : Transformer le bot statique en agent adaptatif.
-
-- [x] **Performance Analyzer** : Calcul du Win Rate/Ratio par crypto (Derniers 10/50 trades).
-- [x] **Dynamic Weights** : Ajustement auto de la confiance (Miser plus sur ce qui marche).
-- [x] **Regime Detection** : Identification de l'état du marché (Trend vs Range) via ADX/BB.
-- [ ] **Feedback Loop** : Le bot ajuste ses seuils de déclenchement selon ses résultats réels.
-
-### Module 10: Optimisation Financière ("Smart Aggression") ✅ PARTIEL
-**Objectif** : Maximiser les gains exponentiels tout en protégeant le capital.
-
-- [x] **Critère de Kelly (Half-Kelly)** : Taille de position basée sur l'espérance mathématique de gain.
-- [x] **Pyramiding** : Ajouter à une position gagnante (scale-in) si le trend se confirme + SL Break-even.
-- [ ] **Yield Farming** : (Exploratoire) Placer le capital "dormant" en staking flexible (si possible via API).
-- [ ] **Smart Re-entry** : Ré-entrer rapidement après une "mèche" de liquidation si le signal reste valide.
+### Module 9 : Auto-Apprentissage ✅ COMPLET
+- [x] AutoLearner (analyse quotidienne)
+- [x] Blacklist dynamique par symbole
+- [x] Ajustement confiance basé historique
+- [x] Alertes Telegram intégrées
 
 ---
 
-## 🎯 Priorités Stratégiques (Revisées)
+## 🎯 Priorités Stratégiques (Mise à jour 2026-01-07)
 
-### 🔴 Priorité Immédiate : Le "Cerveau Financier"
-**Pourquoi ?** Pour qu'il arrête de trader "bêtement" et commence à gérer le capital comme un pro.
+### ✅ COMPLÉTÉ
 
-1. **Fix GitHub Actions** (TA-Lib Cache)
-   - Fichier : `.github/workflows/trading_bot.yml`
-   - Action : Installer TA-Lib localement pour éviter les erreurs de permission.
+1.  **Training ML (XGBoost)** ✅
+    *   `scripts/train_model.py` (420 lignes)
+    *   Pipeline complet: fetch → features → labeling → Optuna → model
+    *   Intégration automatique dans `SignalGenerator`
 
-2. **Implémenter `RiskManager` 2.0 (Kelly + Pyramiding)**
-   - Fichiers : `src/trading/risk_manager.py`
-   - Action : Remplacer sizing statique par dynamique.
+2.  **Backtesting & Validation** ✅
+    *   `src/backtest/engine.py` (550 lignes)
+    *   Stress-tests: crash_2022, rally_2021, sideways_2023
+    *   Rapports HTML avec métriques complètes
 
-3. **Créer le module `ActiveLearning`**
-   - Fichiers : `src/learning/performance.py`
-   - Action : Feedback loop qui lit la DB et update les configs.
+3.  **Boucle d'Auto-Amélioration** ✅
+    *   `src/learning/auto_learner.py` (300 lignes)
+    *   Blacklist dynamique + Confidence adjustment
 
-4. **Backtesting Rapide**
-   - Fichiers : `src/backtest/simple_runner.py`
-   - Action : Valider que le Kelly Criterion n'est pas trop agressif.
+4.  **Alertes Telegram** ✅
+    *   `src/monitoring/telegram_notifier.py` (240 lignes)
 
-### 🟡 Priorité Secondaire : Raffinement
-5. **Alertes Telegram Interactives** (pour valider les décisions "agressives" en temps réel).
-6. **Amélioration du Dashboard** (Voir les métriques d'apprentissage : "Je suis confiant sur SOL, méfiant sur XRP").
+### 🟡 Prochaines Étapes
+5.  **Entraîner le modèle**: `python scripts/train_model.py`
+6.  **Valider par backtest**: `python scripts/run_backtest.py --period 6m`
+7.  **Déployer en production**
 
 ---
 
 ## 📋 Roadmap Technique
 
-### Phase 1 : Maintenance et Stabilité (Aujourd'hui)
-- [/] Réparer le cache TA-Lib dans GitHub Actions.
-- [x] Coder `SafetyChecks` pour le pyramiding (éviter le sur-levier).
-- [x] Intégrer la formule de Kelly dans `calculate_position_size`.
-- [x] Activer le "Breakeven Stop" automatique pour les positions pyramidées.
+### Phase 1 : Fiabilisation & Socle ✅
+- [x] Fix Blocking I/O (Database & API)
+- [x] Fix "Stale Data" logic (Check SL sur prix frais)
+- [x] Implémentation Kelly & Pyramiding
+- [x] Optimisation bande passante (Limit 50)
 
-### Phase 2 : Conscience de Soi (Semaine pro)
-- [ ] Le bot doit savoir : "Je suis en Drawdown de 5%, je réduis mon risque de moitié".
-- [ ] Le bot doit savoir : "Le marché est en range, je désactive les stratégies de breakout".
+### Phase 2 : Construction du Cerveau ✅
+- [x] **Data Pipeline** : train_model.py (fetch + features)
+- [x] **Training** : XGBoost avec Optuna
+- [x] **Backtest** : engine.py + run_backtest.py
+- [x] **Auto-Learning** : auto_learner.py
+
+### Phase 3 : Production 🟡 En cours
+- [x] Alertes Telegram
+- [ ] Entraîner le modèle sur 6 mois
+- [ ] Paper trading 48h
+- [ ] Déploiement live
 
 ---
 

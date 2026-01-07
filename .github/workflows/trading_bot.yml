@@ -5,7 +5,8 @@ on:
     branches: [ main ]
   schedule:
     # Réveil toutes les 15 minutes
-    - cron: '*/15 * * * *'
+    # Réveil toutes les 5 minutes (Repo Public = Gratuit & Illimité)
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     # Permet de lancer manuellement depuis l'interface GitHub
 
