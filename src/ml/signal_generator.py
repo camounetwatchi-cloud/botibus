@@ -74,16 +74,23 @@ class SignalGenerator:
             try:
                 with open(path_to_load, 'rb') as f:
                     self.model = pickle.load(f)
-                self.model_loaded = True
-                logger.info(f"✅ XGBoost model loaded from {path_to_load}")
                 
                 # Load feature columns
                 if features_to_load.exists():
                     with open(features_to_load, 'r') as f:
                         self.feature_columns = json.load(f)
+                    logger.info(f"✅ XGBoost model loaded from {path_to_load}")
                     logger.info(f"   Using {len(self.feature_columns)} features")
+                    self.model_loaded = True
+                else:
+                    logger.warning(f"❌ Model found but feature columns missing at {features_to_load}")
+                    self.model = None
+                    self.model_loaded = False
+                    
             except Exception as e:
                 logger.warning(f"Could not load ML model: {e}")
+                self.model = None
+                self.model_loaded = False
         else:
             logger.info("ℹ️ No trained XGBoost model found, using heuristics")
     

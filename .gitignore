@@ -13,3 +13,5 @@ venv/
 *.json
 !package.json
 !tsconfig.json
+!src/ml/models/feature_columns.json
+!src/ml/models/xgb_model.pkl
